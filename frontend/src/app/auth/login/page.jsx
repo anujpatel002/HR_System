@@ -12,7 +12,23 @@ export default function LoginPage() {
   const dispatch = useDispatch();
   const { isLoading, error, isAuthenticated } = useSelector((state) => state.auth);
   
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm();
+
+  const defaultUsers = [
+    { label: 'Select Demo Account', email: '', password: '' },
+    { label: 'Admin', email: 'admin@workzen.com', password: 'admin123' },
+    { label: 'HR Officer', email: 'hr@workzen.com', password: 'hr123' },
+    { label: 'Payroll Officer', email: 'payroll@workzen.com', password: 'payroll123' },
+    { label: 'Employee', email: 'john.doe@workzen.com', password: 'employee123' }
+  ];
+
+  const handleUserSelect = (e) => {
+    const selectedUser = defaultUsers.find(user => user.label === e.target.value);
+    if (selectedUser && selectedUser.email) {
+      setValue('email', selectedUser.email);
+      setValue('password', selectedUser.password);
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -49,6 +65,21 @@ export default function LoginPage() {
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
+            <div>
+              <label htmlFor="userSelect" className="block text-sm font-medium text-gray-700">
+                Quick Login (Demo)
+              </label>
+              <select
+                onChange={handleUserSelect}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {defaultUsers.map((user) => (
+                  <option key={user.label} value={user.label}>
+                    {user.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address
@@ -96,11 +127,7 @@ export default function LoginPage() {
             </button>
           </div>
           
-          <div className="text-center">
-            <p className="text-sm text-gray-600">
-              Demo accounts: admin@workzen.com / admin123
-            </p>
-          </div>
+
         </form>
       </div>
     </div>

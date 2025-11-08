@@ -16,6 +16,7 @@ export default function EmployeeDashboardPage() {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [checkInTime, setCheckInTime] = useState(null);
   const [isCheckedOut, setIsCheckedOut] = useState(false);
+  const [checkOutTime, setCheckOutTime] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export default function EmployeeDashboardPage() {
           // Already checked out - show attendance marked
           setIsCheckedIn(false);
           setIsCheckedOut(true);
+          setCheckOutTime(new Date(attendance.checkOut));
         } else {
           // Checked in but not checked out
           setIsCheckedIn(true);
@@ -91,6 +93,7 @@ export default function EmployeeDashboardPage() {
       await attendanceAPI.mark('checkout');
       setIsCheckedIn(false);
       setIsCheckedOut(true);
+      setCheckOutTime(new Date());
       toast.success('Checked out successfully!');
     } catch (error) {
       if (error.response?.data?.message) {
@@ -177,7 +180,7 @@ export default function EmployeeDashboardPage() {
         }`}>
           <p className={isCheckedOut ? 'text-blue-800' : 'text-green-800'}>
             {isCheckedOut 
-              ? `Attendance completed - Checked in at ${checkInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+              ? `Attendance completed - Checked in at ${checkInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | Checked out at ${checkOutTime?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
               : `You checked in at ${checkInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
             }
           </p>
