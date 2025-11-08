@@ -1,0 +1,9 @@
+{
+  "name": "WorkZen HR Management System",
+  "short_name": "WorkZen",
+  "description": "Smart Human Resource Management System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6"
+}

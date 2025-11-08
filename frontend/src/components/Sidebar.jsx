@@ -1,0 +1,68 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { 
+  LayoutDashboard, 
+  Users, 
+  Clock, 
+  Calendar, 
+  DollarSign, 
+  BarChart3,
+  Settings 
+} from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { canManageUsers, canManagePayroll, canViewAllData } from '../utils/roleGuards';
+
+const navigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['all'] },
+  { name: 'Attendance', href: '/dashboard/attendance', icon: Clock, roles: ['all'] },
+  { name: 'Leave', href: '/dashboard/leave', icon: Calendar, roles: ['all'] },
+  { name: 'Payroll', href: '/dashboard/payroll', icon: DollarSign, roles: ['all'] },
+  { name: 'Users', href: '/dashboard/admin', icon: Users, roles: ['admin', 'hr'] },
+  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: ['admin', 'hr', 'payroll'] },
+];
+
+export default function Sidebar() {
+  const pathname = usePathname();
+  const { user } = useAuth();
+
+  const isNavItemVisible = (item) => {
+    if (item.roles.includes('all')) return true;
+    
+    if (item.roles.includes('admin') && canManageUsers(user?.role)) return true;
+    if (item.roles.includes('hr') && canManageUsers(user?.role)) return true;
+    if (item.roles.includes('payroll') && canManagePayroll(user?.role)) return true;
+    
+    return false;
+  };
+
+  return (
+    <div className="w-64 bg-white shadow-sm border-r border-gray-200 h-full">
+      <nav className="mt-8 px-4">
+        <ul className="space-y-2">
+          {navigation.map((item) => {
+            if (!isNavItemVisible(item)) return null;
+            
+            const isActive = pathname === item.href;
+            return (
+              <li key={item.name}>
+                <Link
+                  href={item.href}
+                  className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    isActive
+                      ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-700'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <item.icon className="mr-3 h-5 w-5" />
+                  {item.name}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </div>
+  );
+}
