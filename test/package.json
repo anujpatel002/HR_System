@@ -1,0 +1,14 @@
+{
+  "name": "hr-system-tests",
+  "version": "1.0.0",
+  "description": "API tests for HR System",
+  "main": "api-test.js",
+  "scripts": {
+    "test": "node api-test.js",
+    "test-users": "node -e \"require('./api-test').testUsers()\"",
+    "test-payroll": "node -e \"require('./api-test').testPayrollStats()\""
+  },
+  "dependencies": {
+    "axios": "^1.6.2"
+  }
+}

@@ -93,12 +93,118 @@ async function main() {
     });
   }
 
+  // Get created users for sample data
+  const johnDoe = await prisma.user.findUnique({ where: { email: 'john.doe@workzen.com' } });
+  const janeSmith = await prisma.user.findUnique({ where: { email: 'jane.smith@workzen.com' } });
+
+  // Create sample attendance records for the last 30 days
+  const today = new Date();
+  for (let i = 0; i < 30; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    date.setHours(0, 0, 0, 0);
+    
+    // Skip weekends
+    if (date.getDay() === 0 || date.getDay() === 6) continue;
+    
+    // 90% attendance rate
+    if (Math.random() > 0.1) {
+      const checkIn = new Date(date);
+      checkIn.setHours(9, Math.floor(Math.random() * 30), 0, 0);
+      
+      const checkOut = new Date(date);
+      checkOut.setHours(17 + Math.floor(Math.random() * 2), Math.floor(Math.random() * 60), 0, 0);
+      
+      const totalHours = (checkOut - checkIn) / (1000 * 60 * 60);
+      
+      await prisma.attendance.upsert({
+        where: {
+          userId_date: {
+            userId: johnDoe.id,
+            date: date
+          }
+        },
+        update: {},
+        create: {
+          userId: johnDoe.id,
+          date: date,
+          checkIn: checkIn,
+          checkOut: checkOut,
+          totalHours: Math.round(totalHours * 100) / 100,
+          status: 'PRESENT'
+        }
+      });
+    }
+  }
+
+  // Create sample leave applications
+  const leaveApplications = [
+    {
+      userId: johnDoe.id,
+      type: 'CASUAL',
+      startDate: new Date(today.getFullYear(), today.getMonth() + 1, 15),
+      endDate: new Date(today.getFullYear(), today.getMonth() + 1, 16),
+      reason: 'Personal work',
+      status: 'PENDING'
+    },
+    {
+      userId: johnDoe.id,
+      type: 'SICK',
+      startDate: new Date(today.getFullYear(), today.getMonth() - 1, 10),
+      endDate: new Date(today.getFullYear(), today.getMonth() - 1, 12),
+      reason: 'Fever and cold',
+      status: 'APPROVED'
+    }
+  ];
+
+  for (const leave of leaveApplications) {
+    await prisma.leave.create({ data: leave });
+  }
+
+  // Create sample payroll records
+  const currentMonth = String(today.getMonth() + 1).padStart(2, '0');
+  const lastMonth = String(today.getMonth()).padStart(2, '0');
+  const currentYear = today.getFullYear();
+  
+  const payrollData = [
+    {
+      userId: johnDoe.id,
+      month: lastMonth,
+      year: currentYear,
+      basicSalary: 60000,
+      gross: 60000,
+      pf: 7200, // 12% of basic
+      tax: 200,
+      deductions: 7400,
+      netPay: 52600
+    },
+    {
+      userId: johnDoe.id,
+      month: String(today.getMonth() - 1).padStart(2, '0'),
+      year: currentYear,
+      basicSalary: 60000,
+      gross: 60000,
+      pf: 7200,
+      tax: 200,
+      deductions: 7900,
+      netPay: 52100
+    }
+  ];
+
+  for (const payroll of payrollData) {
+    await prisma.payroll.create({ data: payroll });
+  }
+
   console.log('✅ Database seeded successfully!');
   console.log('📧 Default accounts:');
   console.log('   Admin: admin@workzen.com / admin123');
   console.log('   HR: hr@workzen.com / hr123');
   console.log('   Payroll: payroll@workzen.com / payroll123');
   console.log('   Employee: john.doe@workzen.com / employee123');
+  console.log('📊 Sample data created:');
+  console.log('   - 30 days of attendance records');
+  console.log('   - 2 leave applications');
+  console.log('   - 2 payroll records');
 }
 
 main()

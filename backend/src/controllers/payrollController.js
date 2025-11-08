@@ -169,12 +169,8 @@ const getPayrollStats = async (req, res) => {
     const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
     const currentYear = currentDate.getFullYear();
 
-    // Get current month payroll stats
+    // Get all payroll stats
     const payrollStats = await prisma.payroll.aggregate({
-      where: {
-        month: currentMonth,
-        year: currentYear
-      },
       _sum: {
         gross: true,
         netPay: true,

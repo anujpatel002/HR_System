@@ -146,16 +146,17 @@ export default function PayrollPage() {
               <select
                 {...register('userIds')}
                 multiple
-                className="input-field h-32"
+                size={Math.min(users.length, 6)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 {users.map((user) => (
-                  <option key={user.id} value={user.id}>
+                  <option key={user.id} value={user.id} className="py-1">
                     {user.name} - {user.email}
                   </option>
                 ))}
               </select>
               <p className="mt-1 text-xs text-gray-500">
-                Hold Ctrl/Cmd to select multiple employees
+                Hold Ctrl/Cmd and click to select multiple employees. Selected employees will be highlighted.
               </p>
             </div>
             

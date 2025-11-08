@@ -69,9 +69,29 @@ npm run dev
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:5000
 
-## Default Admin Account
-- Email: admin@workzen.com
-- Password: admin123
+## Default Login Accounts
+
+After running the seed script (`npm run seed` in backend), use these accounts:
+
+### Admin Account
+- **Email**: admin@workzen.com
+- **Password**: admin123
+- **Access**: Full system access, user management, all modules
+
+### HR Officer Account
+- **Email**: hr@workzen.com
+- **Password**: hr123
+- **Access**: User management, leave approvals, analytics
+
+### Payroll Officer Account
+- **Email**: payroll@workzen.com
+- **Password**: payroll123
+- **Access**: Payroll generation, salary management, analytics
+
+### Employee Account
+- **Email**: john.doe@workzen.com
+- **Password**: employee123
+- **Access**: Personal attendance, leave applications, payslips
 
 ## API Documentation
 

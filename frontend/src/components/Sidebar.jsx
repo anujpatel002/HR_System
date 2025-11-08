@@ -14,25 +14,41 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { canManageUsers, canManagePayroll, canViewAllData } from '../utils/roleGuards';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['all'] },
-  { name: 'Attendance', href: '/dashboard/attendance', icon: Clock, roles: ['all'] },
-  { name: 'Leave', href: '/dashboard/leave', icon: Calendar, roles: ['all'] },
-  { name: 'Payroll', href: '/dashboard/payroll', icon: DollarSign, roles: ['all'] },
-  { name: 'Users', href: '/dashboard/admin', icon: Users, roles: ['admin', 'hr'] },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: ['admin', 'hr', 'payroll'] },
-];
+const getNavigation = (userRole) => {
+  if (userRole === 'EMPLOYEE') {
+    return [
+      { name: 'Employees', href: '/dashboard/employee-dashboard', icon: Users },
+      { name: 'Attendance', href: '/dashboard/employee-dashboard/attendance', icon: Clock },
+      { name: 'Time Off', href: '/dashboard/employee-dashboard/leave', icon: Calendar },
+      { name: 'Payroll', href: '/dashboard/employee-dashboard/payroll', icon: DollarSign },
+      { name: 'Reports', href: '/dashboard/employee-dashboard/reports', icon: BarChart3 },
+      { name: 'Settings', href: '/dashboard/employee-dashboard/profile', icon: Settings },
+    ];
+  }
+  
+  return [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['all'] },
+    { name: 'Attendance', href: '/dashboard/attendance', icon: Clock, roles: ['all'] },
+    { name: 'Leave', href: '/dashboard/leave', icon: Calendar, roles: ['all'] },
+    { name: 'Payroll', href: '/dashboard/payroll', icon: DollarSign, roles: ['all'] },
+    { name: 'Users', href: '/dashboard/admin', icon: Users, roles: ['admin', 'hr'] },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: ['admin', 'hr', 'payroll'] },
+  ];
+};
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
+  
+  const navigation = getNavigation(user?.role);
 
   const isNavItemVisible = (item) => {
-    if (item.roles.includes('all')) return true;
+    if (user?.role === 'EMPLOYEE') return true;
+    if (item.roles?.includes('all')) return true;
     
-    if (item.roles.includes('admin') && canManageUsers(user?.role)) return true;
-    if (item.roles.includes('hr') && canManageUsers(user?.role)) return true;
-    if (item.roles.includes('payroll') && canManagePayroll(user?.role)) return true;
+    if (item.roles?.includes('admin') && canManageUsers(user?.role)) return true;
+    if (item.roles?.includes('hr') && canManageUsers(user?.role)) return true;
+    if (item.roles?.includes('payroll') && canManagePayroll(user?.role)) return true;
     
     return false;
   };

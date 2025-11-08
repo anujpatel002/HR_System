@@ -31,6 +31,15 @@ npm run dev
 
 The app will be available at http://localhost:3000
 
+## Default Login Accounts
+
+Use these accounts to test different user roles:
+
+- **Admin**: admin@workzen.com / admin123
+- **HR Officer**: hr@workzen.com / hr123  
+- **Payroll Officer**: payroll@workzen.com / payroll123
+- **Employee**: john.doe@workzen.com / employee123
+
 ## Project Structure
 
 ```

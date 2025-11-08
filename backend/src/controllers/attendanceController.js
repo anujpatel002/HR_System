@@ -15,13 +15,13 @@ const markAttendance = async (req, res) => {
 
     const userId = req.user.id;
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
     let attendance = await prisma.attendance.findUnique({
       where: {
         userId_date: {
           userId,
-          date: today
+          date: todayStart
         }
       }
     });
@@ -37,7 +37,7 @@ const markAttendance = async (req, res) => {
         where: {
           userId_date: {
             userId,
-            date: today
+            date: todayStart
           }
         },
         update: {
@@ -46,7 +46,7 @@ const markAttendance = async (req, res) => {
         },
         create: {
           userId,
-          date: today,
+          date: todayStart,
           checkIn: now,
           status: 'PRESENT'
         }
@@ -75,6 +75,7 @@ const markAttendance = async (req, res) => {
       success(res, attendance, 'Checked out successfully');
     }
   } catch (err) {
+    console.error('Attendance error:', err);
     error(res, 'Failed to mark attendance', 500);
   }
 };
@@ -84,7 +85,6 @@ const getAttendance = async (req, res) => {
     const { userId } = req.params;
     const { month, year } = req.query;
 
-    // Check if user can access this data
     if (userId !== req.user.id && !['ADMIN', 'HR_OFFICER', 'PAYROLL_OFFICER'].includes(req.user.role)) {
       return error(res, 'Access denied', 403);
     }
@@ -120,13 +120,13 @@ const getTodayAttendance = async (req, res) => {
   try {
     const userId = req.user.id;
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
     const attendance = await prisma.attendance.findUnique({
       where: {
         userId_date: {
           userId,
-          date: today
+          date: todayStart
         }
       }
     });

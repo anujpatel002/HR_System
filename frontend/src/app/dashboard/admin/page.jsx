@@ -45,7 +45,6 @@ export default function AdminPage() {
         await usersAPI.update(editingUser.id, data);
         toast.success('User updated successfully!');
       } else {
-        // For new users, you'd typically use a registration endpoint
         toast.info('User registration should be done through the registration page');
         return;
       }
@@ -158,7 +157,7 @@ export default function AdminPage() {
                   type="email"
                   className="input-field"
                   placeholder="Enter email address"
-                  disabled={editingUser} // Don't allow email changes
+                  disabled={editingUser}
                 />
                 {errors.email && (
                   <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>

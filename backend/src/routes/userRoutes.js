@@ -5,7 +5,7 @@ const roleMiddleware = require('../middleware/roleMiddleware');
 
 const router = express.Router();
 
-router.get('/', authMiddleware, roleMiddleware(['ADMIN', 'HR_OFFICER']), getAllUsers);
+router.get('/', authMiddleware, roleMiddleware(['ADMIN', 'HR_OFFICER', 'EMPLOYEE']), getAllUsers);
 router.get('/:id', authMiddleware, getUserById);
 router.put('/:id', authMiddleware, updateUser);
 router.delete('/:id', authMiddleware, roleMiddleware(['ADMIN']), deleteUser);
