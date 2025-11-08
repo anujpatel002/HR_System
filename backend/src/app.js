@@ -14,13 +14,14 @@ const payrollRoutes = require('./routes/payrollRoutes');
 const userRequestRoutes = require('./routes/userRequestRoutes');
 const activityRoutes = require('./routes/activityRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
+const screenMonitorRoutes = require('./routes/screenMonitorRoutes');
 
 const app = express();
 
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: [FRONTEND_URL, 'http://10.240.27.11:3000', 'http://localhost:3000'],
   credentials: true
 }));
 
@@ -46,6 +47,7 @@ app.use('/api/payroll', payrollRoutes);
 app.use('/api/user-requests', userRequestRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/sessions', sessionRoutes);
+app.use('/api/screen-monitor', screenMonitorRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

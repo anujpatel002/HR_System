@@ -10,7 +10,8 @@ import {
   DollarSign, 
   BarChart3,
   Settings,
-  Activity
+  Activity,
+  Monitor
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { canManageUsers, canManagePayroll, canViewAllData } from '../utils/roleGuards';
@@ -29,10 +30,11 @@ const getNavigation = (userRole) => {
   
   return [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['all'] },
+    { name: 'Overview', href: '/dashboard/admin-overview', icon: Users, roles: ['admin'] },
     { name: 'Attendance', href: '/dashboard/attendance', icon: Clock, roles: ['all'] },
     { name: 'Leave', href: '/dashboard/leave', icon: Calendar, roles: ['all'] },
     { name: 'Payroll', href: '/dashboard/payroll', icon: DollarSign, roles: ['all'] },
-    { name: 'Users', href: '/dashboard/admin', icon: Users, roles: ['admin', 'hr'] },
+    { name: 'Manage Users', href: '/dashboard/admin', icon: Users, roles: ['admin', 'hr'] },
     { name: 'Sessions', href: '/dashboard/sessions', icon: Users, roles: ['admin'] },
     { name: 'Activities', href: '/dashboard/activities', icon: Activity, roles: ['admin'] },
     { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: ['admin', 'hr', 'payroll'] },

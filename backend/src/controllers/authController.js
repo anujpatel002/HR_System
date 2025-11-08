@@ -92,6 +92,14 @@ const login = async (req, res) => {
       }
     });
 
+    // Clear any existing screen share data for fresh login
+    if (global.userScreenshots) {
+      global.userScreenshots.delete(user.id);
+    }
+    if (global.screenShareRequests) {
+      global.screenShareRequests.delete(user.id);
+    }
+
     // Log activity
     await logActivity(user.id, 'LOGIN', 'AUTH', null, { email: user.email });
 
@@ -127,6 +135,14 @@ const logout = async (req, res) => {
         logoutTime: new Date()
       }
     });
+    
+    // Clear screen share data and requests
+    if (global.userScreenshots) {
+      global.userScreenshots.delete(req.user.id);
+    }
+    if (global.screenShareRequests) {
+      global.screenShareRequests.delete(req.user.id);
+    }
   }
   
   res.clearCookie('token');

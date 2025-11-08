@@ -4,16 +4,21 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import { useSessionTimeout } from '../../hooks/useSessionTimeout';
+import { useScreenMonitor } from '../../hooks/useScreenMonitor';
+import { useScreenCapture } from '../../hooks/useScreenCapture';
 import { attendanceAPI } from '../../lib/api';
 import Navbar from '../../components/Navbar';
 import Sidebar from '../../components/Sidebar';
 import CheckInModal from '../../components/CheckInModal';
+import ScreenShareRequest from '../../components/ScreenShareRequest';
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   useSessionTimeout(720); // 12 hours
+  useScreenMonitor(user);
+  useScreenCapture();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -78,6 +83,7 @@ export default function DashboardLayout({ children }) {
         onClose={() => setShowCheckInModal(false)}
         onCheckIn={handleCheckIn}
       />
+      <ScreenShareRequest />
     </div>
   );
 }
