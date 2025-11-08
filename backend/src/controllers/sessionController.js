@@ -3,15 +3,23 @@ const { success, error } = require('../utils/responseHandler');
 
 const getActiveSessions = async (req, res) => {
   try {
-    const sessions = await prisma.userSession.findMany({
-      where: { isActive: true },
-      include: {
-        user: {
-          select: { name: true, email: true, role: true, department: true }
-        }
-      },
-      orderBy: { loginTime: 'desc' }
-    });
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const [sessions, total] = await Promise.all([
+      prisma.userSession.findMany({
+        where: { isActive: true },
+        include: {
+          user: {
+            select: { name: true, email: true, role: true, department: true }
+          }
+        },
+        orderBy: { loginTime: 'desc' },
+        skip: parseInt(skip),
+        take: parseInt(limit)
+      }),
+      prisma.userSession.count({ where: { isActive: true } })
+    ]);
 
     // Get attendance status for each user
     const today = new Date();
@@ -36,7 +44,15 @@ const getActiveSessions = async (req, res) => {
       })
     );
 
-    success(res, sessionsWithAttendance, 'Active sessions retrieved successfully');
+    success(res, {
+      sessions: sessionsWithAttendance,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    }, 'Active sessions retrieved successfully');
   } catch (err) {
     error(res, 'Failed to get sessions', 500);
   }

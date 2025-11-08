@@ -112,7 +112,8 @@ const generatePayroll = async (req, res) => {
 const getPayroll = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { month, year } = req.query;
+    const { month, year, page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
 
     // Check access permissions
     if (userId !== req.user.id && !['ADMIN', 'PAYROLL_OFFICER'].includes(req.user.role)) {
@@ -125,17 +126,30 @@ const getPayroll = async (req, res) => {
       whereClause.year = parseInt(year);
     }
 
-    const payrolls = await prisma.payroll.findMany({
-      where: whereClause,
-      orderBy: [{ year: 'desc' }, { month: 'desc' }],
-      include: {
-        user: {
-          select: { name: true, email: true, department: true }
+    const [payrolls, total] = await Promise.all([
+      prisma.payroll.findMany({
+        where: whereClause,
+        orderBy: [{ year: 'desc' }, { month: 'desc' }],
+        skip: parseInt(skip),
+        take: parseInt(limit),
+        include: {
+          user: {
+            select: { name: true, email: true, department: true }
+          }
         }
-      }
-    });
+      }),
+      prisma.payroll.count({ where: whereClause })
+    ]);
 
-    success(res, payrolls, 'Payroll retrieved successfully');
+    success(res, {
+      payrolls,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    }, 'Payroll retrieved successfully');
   } catch (err) {
     error(res, 'Failed to get payroll', 500);
   }
@@ -143,7 +157,8 @@ const getPayroll = async (req, res) => {
 
 const getAllPayrolls = async (req, res) => {
   try {
-    const { month, year } = req.query;
+    const { month, year, page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
 
     let whereClause = {};
     if (month && year) {
@@ -151,17 +166,30 @@ const getAllPayrolls = async (req, res) => {
       whereClause.year = parseInt(year);
     }
 
-    const payrolls = await prisma.payroll.findMany({
-      where: whereClause,
-      orderBy: [{ year: 'desc' }, { month: 'desc' }, { createdAt: 'desc' }],
-      include: {
-        user: {
-          select: { name: true, email: true, department: true }
+    const [payrolls, total] = await Promise.all([
+      prisma.payroll.findMany({
+        where: whereClause,
+        orderBy: [{ year: 'desc' }, { month: 'desc' }, { createdAt: 'desc' }],
+        skip: parseInt(skip),
+        take: parseInt(limit),
+        include: {
+          user: {
+            select: { name: true, email: true, department: true }
+          }
         }
-      }
-    });
+      }),
+      prisma.payroll.count({ where: whereClause })
+    ]);
 
-    success(res, payrolls, 'All payrolls retrieved successfully');
+    success(res, {
+      payrolls,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    }, 'All payrolls retrieved successfully');
   } catch (err) {
     error(res, 'Failed to get payrolls', 500);
   }

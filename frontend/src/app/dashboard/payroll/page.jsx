@@ -8,6 +8,7 @@ import { payrollAPI, usersAPI } from '../../../lib/api';
 import { useAuth } from '../../../hooks/useAuth';
 import { canManagePayroll } from '../../../utils/roleGuards';
 import { MONTHS } from '../../../utils/constants';
+import Pagination from '../../../components/Pagination';
 
 export default function PayrollPage() {
   const { user } = useAuth();
@@ -15,6 +16,8 @@ export default function PayrollPage() {
   const [users, setUsers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     defaultValues: {
@@ -24,25 +27,37 @@ export default function PayrollPage() {
   });
 
   useEffect(() => {
-    fetchPayrollData();
+    fetchPayrollData(1);
     if (canManagePayroll(user?.role)) {
       fetchUsers();
     }
   }, []);
 
-  const fetchPayrollData = async () => {
+  const fetchPayrollData = async (page = 1) => {
     try {
       setLoading(true);
+      const params = { page, limit: 10 };
       const response = canManagePayroll(user?.role) 
-        ? await payrollAPI.getAll()
-        : await payrollAPI.getByUser(user.id);
-      setPayrolls(response.data.data);
+        ? await payrollAPI.getAll(params)
+        : await payrollAPI.getByUser(user.id, params);
+      
+      const data = response.data.data;
+      setPayrolls(Array.isArray(data) ? data : data.payrolls || []);
+      
+      if (data.pagination) {
+        setTotalPages(data.pagination.pages);
+        setCurrentPage(page);
+      }
     } catch (error) {
       console.error('Error fetching payroll:', error);
       toast.error('Failed to load payroll data');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageChange = (page) => {
+    fetchPayrollData(page);
   };
 
   const fetchUsers = async () => {
@@ -60,7 +75,7 @@ export default function PayrollPage() {
       toast.success('Payroll generated successfully!');
       setShowForm(false);
       reset();
-      fetchPayrollData();
+      fetchPayrollData(currentPage);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to generate payroll');
     }
@@ -94,6 +109,29 @@ export default function PayrollPage() {
           </button>
         )}
       </div>
+
+      {/* Bank Details Warning */}
+      {!canManagePayroll(user?.role) && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">
+                Bank Details Required
+              </h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>
+                  Please update your bank details (Account Number and IFSC Code) in your profile to receive payroll payments.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Payroll Generation Form */}
       {showForm && canManagePayroll(user?.role) && (
@@ -179,6 +217,8 @@ export default function PayrollPage() {
         </div>
       )}
 
+
+
       {/* Payroll Records */}
       <div className="card">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
@@ -254,6 +294,14 @@ export default function PayrollPage() {
             </div>
           )}
         </div>
+        
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        )}
       </div>
 
       {/* Payroll Breakdown (for individual payslip view) */}

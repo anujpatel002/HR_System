@@ -4,21 +4,20 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import { useSessionTimeout } from '../../hooks/useSessionTimeout';
-import { useScreenMonitor } from '../../hooks/useScreenMonitor';
-import { useScreenCapture } from '../../hooks/useScreenCapture';
+
 import { attendanceAPI } from '../../lib/api';
+import api from '../../lib/api';
 import Navbar from '../../components/Navbar';
 import Sidebar from '../../components/Sidebar';
 import CheckInModal from '../../components/CheckInModal';
-import ScreenShareRequest from '../../components/ScreenShareRequest';
+
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   useSessionTimeout(720); // 12 hours
-  useScreenMonitor(user);
-  useScreenCapture();
+
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -30,18 +29,36 @@ export default function DashboardLayout({ children }) {
     const checkFirstLoginToday = async () => {
       if (!user || user.role === 'ADMIN') return;
       
-      const lastCheckIn = localStorage.getItem('lastCheckInDate');
-      const today = new Date().toDateString();
-      
-      if (lastCheckIn !== today) {
-        try {
-          const response = await attendanceAPI.getToday();
-          if (!response.data.data?.checkIn) {
+      // Check work settings first
+      try {
+        const settingsResponse = await api.get('/settings/work');
+        const settings = settingsResponse.data.data;
+        
+        if (!settings.checkInPopup) return;
+        
+        const now = new Date();
+        const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        
+        // Only show popup during configured time window
+        if (currentTime < settings.popupStartTime || currentTime > settings.popupEndTime) {
+          return;
+        }
+        
+        const lastCheckIn = localStorage.getItem('lastCheckInDate');
+        const today = new Date().toDateString();
+        
+        if (lastCheckIn !== today) {
+          try {
+            const response = await attendanceAPI.getToday();
+            if (!response.data.data?.checkIn) {
+              setShowCheckInModal(true);
+            }
+          } catch (error) {
             setShowCheckInModal(true);
           }
-        } catch (error) {
-          setShowCheckInModal(true);
         }
+      } catch (error) {
+        console.error('Failed to check settings:', error);
       }
     };
 
@@ -83,7 +100,7 @@ export default function DashboardLayout({ children }) {
         onClose={() => setShowCheckInModal(false)}
         onCheckIn={handleCheckIn}
       />
-      <ScreenShareRequest />
+
     </div>
   );
 }

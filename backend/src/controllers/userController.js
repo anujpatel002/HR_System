@@ -17,30 +17,54 @@ const createUserSchema = Joi.object({
 
 const updateUserSchema = Joi.object({
   name: Joi.string().min(2).optional(),
+  email: Joi.string().email().optional(),
   department: Joi.string().optional(),
   designation: Joi.string().optional(),
   basicSalary: Joi.number().positive().optional(),
-  role: Joi.string().valid('ADMIN', 'EMPLOYEE', 'HR_OFFICER', 'PAYROLL_OFFICER').optional()
+  role: Joi.string().valid('ADMIN', 'EMPLOYEE', 'HR_OFFICER', 'PAYROLL_OFFICER').optional(),
+  bankName: Joi.string().optional(),
+  accountNumber: Joi.string().optional(),
+  ifscCode: Joi.string().optional(),
+  panNo: Joi.string().optional(),
+  uanNo: Joi.string().optional(),
+  phone: Joi.string().optional(),
+  address: Joi.string().optional()
 });
 
 const getAllUsers = async (req, res) => {
   try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        employeeId: true,
-        name: true,
-        email: true,
-        role: true,
-        department: true,
-        designation: true,
-        basicSalary: true,
-        createdAt: true
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
 
-    success(res, users, 'Users retrieved successfully');
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        select: {
+          id: true,
+          employeeId: true,
+          name: true,
+          email: true,
+          role: true,
+          department: true,
+          designation: true,
+          basicSalary: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: parseInt(skip),
+        take: parseInt(limit)
+      }),
+      prisma.user.count()
+    ]);
+
+    success(res, {
+      users,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    }, 'Users retrieved successfully');
   } catch (err) {
     error(res, 'Failed to get users', 500);
   }
@@ -61,6 +85,14 @@ const getUserById = async (req, res) => {
         department: true,
         designation: true,
         basicSalary: true,
+        mobile: true,
+        address: true,
+        maritalStatus: true,
+        nationality: true,
+        company: true,
+        manager: true,
+        location: true,
+        empCode: true,
         createdAt: true
       }
     });
@@ -69,7 +101,13 @@ const getUserById = async (req, res) => {
       return error(res, 'User not found', 404);
     }
 
-    success(res, user, 'User retrieved successfully');
+    // Map mobile to phone for frontend compatibility
+    const responseUser = {
+      ...user,
+      phone: user.mobile
+    };
+
+    success(res, responseUser, 'User retrieved successfully');
   } catch (err) {
     error(res, 'Failed to get user', 500);
   }
@@ -78,26 +116,41 @@ const getUserById = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { error: validationError, value } = updateUserSchema.validate(req.body);
+    console.log('Update request for user:', id);
+    console.log('Request body:', req.body);
+    console.log('Current user:', req.user.id);
     
-    if (validationError) {
-      return error(res, validationError.details[0].message, 400);
+    // Users can update their own profile
+    if (req.user.id !== id && req.user.role !== 'ADMIN' && req.user.role !== 'HR_OFFICER') {
+      return error(res, 'You can only update your own profile', 403);
     }
 
-    // Check if user exists
+    // Check if user exists first
     const existingUser = await prisma.user.findUnique({ where: { id } });
     if (!existingUser) {
       return error(res, 'User not found', 404);
     }
 
-    // Only admin can update role and salary
-    if ((value.role || value.basicSalary) && req.user.role !== 'ADMIN') {
-      return error(res, 'Only admin can update role and salary', 403);
-    }
+    // Update all profile fields
+    const updateData = {};
+    if (req.body.name !== undefined) updateData.name = req.body.name;
+    if (req.body.department !== undefined) updateData.department = req.body.department;
+    if (req.body.designation !== undefined) updateData.designation = req.body.designation;
+    if (req.body.phone !== undefined) updateData.mobile = req.body.phone;
+    if (req.body.address !== undefined) updateData.address = req.body.address;
+    if (req.body.maritalStatus !== undefined) updateData.maritalStatus = req.body.maritalStatus;
+    if (req.body.nationality !== undefined) updateData.nationality = req.body.nationality;
+    if (req.body.company !== undefined) updateData.company = req.body.company;
+    if (req.body.manager !== undefined) updateData.manager = req.body.manager;
+    if (req.body.location !== undefined) updateData.location = req.body.location;
+    if (req.body.empCode !== undefined) updateData.empCode = req.body.empCode;
+    
+    console.log('Update data:', updateData);
 
+    // Perform actual database update
     const updatedUser = await prisma.user.update({
       where: { id },
-      data: value,
+      data: updateData,
       select: {
         id: true,
         employeeId: true,
@@ -106,16 +159,36 @@ const updateUser = async (req, res) => {
         role: true,
         department: true,
         designation: true,
-        basicSalary: true
+        basicSalary: true,
+        mobile: true,
+        address: true,
+        maritalStatus: true,
+        nationality: true,
+        company: true,
+        manager: true,
+        location: true,
+        empCode: true,
+        createdAt: true
       }
     });
-
-    // Log activity
-    await logActivity(req.user.id, 'UPDATE', 'USER', id, { name: updatedUser.name, changes: value });
-
-    success(res, updatedUser, 'User updated successfully');
+    
+    console.log('Updated user:', updatedUser);
+    
+    // Map mobile to phone for frontend compatibility
+    const responseUser = {
+      ...updatedUser,
+      phone: updatedUser.mobile
+    };
+    
+    success(res, responseUser, 'Profile updated successfully');
   } catch (err) {
-    error(res, 'Failed to update user', 500);
+    console.error('Update user error details:', {
+      message: err.message,
+      code: err.code,
+      meta: err.meta,
+      stack: err.stack
+    });
+    error(res, `Failed to update profile: ${err.message}`, 500);
   }
 };
 

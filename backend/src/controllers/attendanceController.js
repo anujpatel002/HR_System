@@ -90,7 +90,8 @@ const markAttendance = async (req, res) => {
 const getAttendance = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { month, year } = req.query;
+    const { month, year, page = 1, limit = 31 } = req.query;
+    const skip = (page - 1) * limit;
 
     if (userId !== req.user.id && !['ADMIN', 'HR_OFFICER', 'PAYROLL_OFFICER'].includes(req.user.role)) {
       return error(res, 'Access denied', 403);
@@ -107,17 +108,30 @@ const getAttendance = async (req, res) => {
       };
     }
 
-    const attendance = await prisma.attendance.findMany({
-      where: whereClause,
-      orderBy: { date: 'desc' },
-      include: {
-        user: {
-          select: { name: true, email: true }
+    const [attendance, total] = await Promise.all([
+      prisma.attendance.findMany({
+        where: whereClause,
+        orderBy: { date: 'desc' },
+        skip: parseInt(skip),
+        take: parseInt(limit),
+        include: {
+          user: {
+            select: { name: true, email: true }
+          }
         }
-      }
-    });
+      }),
+      prisma.attendance.count({ where: whereClause })
+    ]);
 
-    success(res, attendance, 'Attendance retrieved successfully');
+    success(res, {
+      attendance,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    }, 'Attendance retrieved successfully');
   } catch (err) {
     error(res, 'Failed to get attendance', 500);
   }

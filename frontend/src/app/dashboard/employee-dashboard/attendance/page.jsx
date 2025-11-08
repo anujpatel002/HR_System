@@ -30,7 +30,8 @@ export default function EmployeeAttendancePage() {
         month: selectedMonth,
         year: selectedYear
       });
-      setAttendance(response.data.data);
+      const data = response.data.data;
+      setAttendance(Array.isArray(data) ? data : data.attendance || []);
     } catch (error) {
       console.error('Error fetching attendance:', error);
       toast.error('Failed to load attendance records');

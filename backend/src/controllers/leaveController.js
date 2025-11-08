@@ -61,7 +61,8 @@ const applyLeave = async (req, res) => {
 const getLeaves = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { status } = req.query;
+    const { status, page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
 
     // Check access permissions
     if (userId !== req.user.id && !['ADMIN', 'HR_OFFICER', 'PAYROLL_OFFICER'].includes(req.user.role)) {
@@ -73,17 +74,30 @@ const getLeaves = async (req, res) => {
       whereClause.status = status;
     }
 
-    const leaves = await prisma.leave.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: {
-          select: { name: true, email: true }
+    const [leaves, total] = await Promise.all([
+      prisma.leave.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        skip: parseInt(skip),
+        take: parseInt(limit),
+        include: {
+          user: {
+            select: { name: true, email: true }
+          }
         }
-      }
-    });
+      }),
+      prisma.leave.count({ where: whereClause })
+    ]);
 
-    success(res, leaves, 'Leaves retrieved successfully');
+    success(res, {
+      leaves,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    }, 'Leaves retrieved successfully');
   } catch (err) {
     error(res, 'Failed to get leaves', 500);
   }
@@ -91,24 +105,38 @@ const getLeaves = async (req, res) => {
 
 const getAllLeaves = async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
     
     let whereClause = {};
     if (status) {
       whereClause.status = status;
     }
 
-    const leaves = await prisma.leave.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: {
-          select: { name: true, email: true, department: true }
+    const [leaves, total] = await Promise.all([
+      prisma.leave.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        skip: parseInt(skip),
+        take: parseInt(limit),
+        include: {
+          user: {
+            select: { name: true, email: true, department: true }
+          }
         }
-      }
-    });
+      }),
+      prisma.leave.count({ where: whereClause })
+    ]);
 
-    success(res, leaves, 'All leaves retrieved successfully');
+    success(res, {
+      leaves,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    }, 'All leaves retrieved successfully');
   } catch (err) {
     error(res, 'Failed to get leaves', 500);
   }

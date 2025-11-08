@@ -5,10 +5,13 @@ import { User, Edit, Save, X } from 'lucide-react';
 import { usersAPI } from '../../../../lib/api';
 import { useAuth } from '../../../../hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { useDispatch } from 'react-redux';
+import { setCredentials } from '../../../../store/authSlice';
 import toast from 'react-hot-toast';
 
 export default function EmployeeProfilePage() {
-  const { user, setUser } = useAuth();
+  const { user } = useAuth();
+  const dispatch = useDispatch();
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,7 +21,12 @@ export default function EmployeeProfilePage() {
     department: '',
     designation: '',
     phone: '',
-    address: ''
+    address: '',
+    bankName: '',
+    accountNumber: '',
+    ifscCode: '',
+    panNo: '',
+    uanNo: ''
   });
 
   useEffect(() => {
@@ -33,7 +41,12 @@ export default function EmployeeProfilePage() {
       department: user.department || '',
       designation: user.designation || '',
       phone: user.phone || '',
-      address: user.address || ''
+      address: user.address || '',
+      bankName: user.bankName || '',
+      accountNumber: user.accountNumber || '',
+      ifscCode: user.ifscCode || '',
+      panNo: user.panNo || '',
+      uanNo: user.uanNo || ''
     });
   }, [user]);
 
@@ -48,13 +61,53 @@ export default function EmployeeProfilePage() {
   const handleSave = async () => {
     try {
       setLoading(true);
-      const response = await usersAPI.update(user.id, formData);
       
-      setUser(response.data.data);
+      // Send all form fields
+      const updateData = {
+        name: formData.name,
+        department: formData.department,
+        designation: formData.designation,
+        mobile: formData.phone,
+        address: formData.address,
+        bankName: formData.bankName,
+        accountNumber: formData.accountNumber,
+        ifscCode: formData.ifscCode,
+        panNo: formData.panNo,
+        uanNo: formData.uanNo
+      };
+      
+      console.log('Sending update data:', updateData);
+      console.log('User ID:', user.id);
+      
+      const response = await usersAPI.update(user.id, updateData);
+      console.log('Update response:', response.data);
+      
+      // Update user with response data
+      const updatedUser = {
+        ...user,
+        ...response.data.data
+      };
+      dispatch(setCredentials({ user: updatedUser, token: localStorage.getItem('token') }));
+      
+      // Update form data with the response
+      setFormData({
+        name: updatedUser.name || '',
+        email: updatedUser.email || '',
+        department: updatedUser.department || '',
+        designation: updatedUser.designation || '',
+        phone: updatedUser.phone || '',
+        address: updatedUser.address || '',
+        bankName: updatedUser.bankName || '',
+        accountNumber: updatedUser.accountNumber || '',
+        ifscCode: updatedUser.ifscCode || '',
+        panNo: updatedUser.panNo || '',
+        uanNo: updatedUser.uanNo || ''
+      });
       
       setIsEditing(false);
       toast.success('Profile updated successfully');
     } catch (error) {
+      console.error('Profile update error:', error);
       toast.error(error.response?.data?.message || 'Failed to update profile');
     } finally {
       setLoading(false);
@@ -68,7 +121,12 @@ export default function EmployeeProfilePage() {
       department: user.department || '',
       designation: user.designation || '',
       phone: user.phone || '',
-      address: user.address || ''
+      address: user.address || '',
+      bankName: user.bankName || '',
+      accountNumber: user.accountNumber || '',
+      ifscCode: user.ifscCode || '',
+      panNo: user.panNo || '',
+      uanNo: user.uanNo || ''
     });
     setIsEditing(false);
   };
@@ -255,6 +313,103 @@ export default function EmployeeProfilePage() {
                 />
               ) : (
                 <p className="text-gray-900 py-2">{user.address || 'Not provided'}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Bank Details */}
+        <div className="px-6 py-6 border-t border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900 mb-6">Bank Details</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bank Name
+              </label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  name="bankName"
+                  value={formData.bankName}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter bank name"
+                />
+              ) : (
+                <p className="text-gray-900 py-2">{user.bankName || 'Not provided'}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Account Number
+              </label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  name="accountNumber"
+                  value={formData.accountNumber}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter account number"
+                />
+              ) : (
+                <p className="text-gray-900 py-2">{user.accountNumber || 'Not provided'}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                IFSC Code
+              </label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  name="ifscCode"
+                  value={formData.ifscCode}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter IFSC code"
+                />
+              ) : (
+                <p className="text-gray-900 py-2">{user.ifscCode || 'Not provided'}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                PAN Number
+              </label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  name="panNo"
+                  value={formData.panNo}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter PAN number"
+                />
+              ) : (
+                <p className="text-gray-900 py-2">{user.panNo || 'Not provided'}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                UAN Number
+              </label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  name="uanNo"
+                  value={formData.uanNo}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter UAN number"
+                />
+              ) : (
+                <p className="text-gray-900 py-2">{user.uanNo || 'Not provided'}</p>
               )}
             </div>
           </div>

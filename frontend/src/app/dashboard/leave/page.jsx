@@ -9,26 +9,37 @@ import { useAuth } from '../../../hooks/useAuth';
 import { LEAVE_TYPES, LEAVE_STATUS } from '../../../utils/constants';
 import { canManageLeaves } from '../../../utils/roleGuards';
 import { format } from 'date-fns';
+import Pagination from '../../../components/Pagination';
 
 export default function LeavePage() {
   const { user } = useAuth();
   const [leaves, setLeaves] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
   useEffect(() => {
-    fetchLeaves();
+    fetchLeaves(1);
   }, []);
 
-  const fetchLeaves = async () => {
+  const fetchLeaves = async (page = 1) => {
     try {
       setLoading(true);
+      const params = { page, limit: 10 };
       const response = canManageLeaves(user?.role) 
-        ? await leaveAPI.getAll()
-        : await leaveAPI.getByUser(user.id);
-      setLeaves(response.data.data);
+        ? await leaveAPI.getAll(params)
+        : await leaveAPI.getByUser(user.id, params);
+      
+      const data = response.data.data;
+      setLeaves(Array.isArray(data) ? data : data.leaves || []);
+      
+      if (data.pagination) {
+        setTotalPages(data.pagination.pages);
+        setCurrentPage(page);
+      }
     } catch (error) {
       console.error('Error fetching leaves:', error);
       toast.error('Failed to load leaves');
@@ -37,13 +48,17 @@ export default function LeavePage() {
     }
   };
 
+  const handlePageChange = (page) => {
+    fetchLeaves(page);
+  };
+
   const onSubmit = async (data) => {
     try {
       await leaveAPI.apply(data);
       toast.success('Leave application submitted successfully!');
       setShowForm(false);
       reset();
-      fetchLeaves();
+      fetchLeaves(currentPage);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to apply for leave');
     }
@@ -53,7 +68,7 @@ export default function LeavePage() {
     try {
       await leaveAPI.updateStatus(leaveId, status);
       toast.success(`Leave ${status.toLowerCase()} successfully!`);
-      fetchLeaves();
+      fetchLeaves(currentPage);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update leave status');
     }
@@ -269,6 +284,14 @@ export default function LeavePage() {
             </div>
           )}
         </div>
+        
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        )}
       </div>
     </div>
   );

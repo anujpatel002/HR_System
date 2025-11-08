@@ -34,10 +34,14 @@ export default function EmployeeReportsPage() {
         payrollAPI.getByUser(user.id)
       ]);
 
+      const attendanceData = attendanceRes.data.data;
+      const leavesData = leavesRes.data.data;
+      const payrollData = payrollRes.data.data;
+      
       setReportData({
-        attendance: attendanceRes.data.data,
-        leaves: leavesRes.data.data,
-        payroll: payrollRes.data.data
+        attendance: Array.isArray(attendanceData) ? attendanceData : attendanceData.attendance || [],
+        leaves: Array.isArray(leavesData) ? leavesData : leavesData.leaves || [],
+        payroll: Array.isArray(payrollData) ? payrollData : payrollData.payrolls || []
       });
     } catch (error) {
       console.error('Error fetching report data:', error);

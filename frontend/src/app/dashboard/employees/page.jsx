@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Search, Users, Clock, Calendar, DollarSign, BarChart3, Settings, ChevronDown, Plane, User, Grid3X3 } from 'lucide-react';
 import { usersAPI, attendanceAPI } from '../../../lib/api';
 import { useAuth } from '../../../hooks/useAuth';
+import Pagination from '../../../components/Pagination';
 import toast from 'react-hot-toast';
 
 export default function EmployeesPage() {
@@ -15,63 +16,90 @@ export default function EmployeesPage() {
   const [checkInTime, setCheckInTime] = useState(null);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalEmployees, setTotalEmployees] = useState(0);
 
   useEffect(() => {
-    fetchEmployees();
-    checkTodayAttendance();
+    fetchEmployees(1);
+    // checkTodayAttendance();
   }, []);
 
-  const fetchEmployees = async () => {
-    try {
-      setLoading(true);
-      const response = await usersAPI.getAll();
-      
-      const employeesWithStatus = response.data.data.map(emp => ({
-        ...emp,
-        status: Math.random() > 0.6 ? 'present' : Math.random() > 0.5 ? 'leave' : 'absent'
-      }));
-      
-      setEmployees(employeesWithStatus);
-    } catch (error) {
-      console.error('Error fetching employees:', error);
-      toast.error('Failed to load employees');
-    } finally {
-      setLoading(false);
-    }
+  const handlePageChange = (page) => {
+    fetchEmployees(page);
   };
 
-  const checkTodayAttendance = async () => {
-    try {
-      const response = await attendanceAPI.getToday();
-      if (response.data.data?.checkIn) {
-        setIsCheckedIn(true);
-        setCheckInTime(new Date(response.data.data.checkIn));
+  const fetchEmployees = (page = 1) => {
+    setLoading(true);
+    
+    // Mock data
+    const mockEmployees = [
+      {
+        id: '1',
+        employeeId: 'EMP001',
+        name: 'John Doe',
+        email: 'john@example.com',
+        role: 'EMPLOYEE',
+        department: 'IT',
+        designation: 'Developer',
+        basicSalary: 50000
+      },
+      {
+        id: '2',
+        employeeId: 'EMP002',
+        name: 'Jane Smith',
+        email: 'jane@example.com',
+        role: 'EMPLOYEE',
+        department: 'HR',
+        designation: 'HR Manager',
+        basicSalary: 60000
+      },
+      {
+        id: '3',
+        employeeId: 'EMP003',
+        name: 'Mike Johnson',
+        email: 'mike@example.com',
+        role: 'EMPLOYEE',
+        department: 'Finance',
+        designation: 'Accountant',
+        basicSalary: 45000
       }
-    } catch (error) {
-      console.log('No attendance today');
-    }
+    ];
+    
+    const employeesWithStatus = mockEmployees.map(emp => ({
+      ...emp,
+      status: Math.random() > 0.6 ? 'present' : Math.random() > 0.5 ? 'leave' : 'absent'
+    }));
+    
+    setEmployees(employeesWithStatus);
+    setTotalPages(1);
+    setTotalEmployees(mockEmployees.length);
+    setCurrentPage(page);
+    setLoading(false);
   };
 
-  const handleCheckIn = async () => {
-    try {
-      await attendanceAPI.mark('checkin');
-      setIsCheckedIn(true);
-      setCheckInTime(new Date());
-      toast.success('Checked in successfully!');
-    } catch (error) {
-      toast.error('Failed to check in');
-    }
+  // const checkTodayAttendance = async () => {
+  //   try {
+  //     const response = await attendanceAPI.getToday();
+  //     if (response.data.data?.checkIn) {
+  //       setIsCheckedIn(true);
+  //       setCheckInTime(new Date(response.data.data.checkIn));
+  //     }
+  //   } catch (error) {
+  //     console.log('No attendance today');
+  //   }
+  // };
+
+  const handleCheckIn = () => {
+    setIsCheckedIn(true);
+    setCheckInTime(new Date());
+    toast.success('Checked in successfully!');
   };
 
-  const handleCheckOut = async () => {
-    try {
-      await attendanceAPI.mark('checkout');
-      setIsCheckedIn(false);
-      setCheckInTime(null);
-      toast.success('Checked out successfully!');
-    } catch (error) {
-      toast.error('Failed to check out');
-    }
+  const handleCheckOut = () => {
+    setIsCheckedIn(false);
+    setCheckInTime(null);
+    toast.success('Checked out successfully!');
   };
 
   const getStatusIcon = (status) => {
@@ -249,10 +277,57 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
-              {/* Employee Grid - Empty for now */}
+              {/* Employee Grid */}
               <div className="flex-1">
-                <div className="text-center py-20 text-gray-500">
-                  <p>Employee cards will appear here</p>
+                <div className="bg-white rounded-lg border border-gray-200">
+                  <div className="p-4 border-b border-gray-200">
+                    <h3 className="font-medium text-gray-900">Employees ({totalEmployees})</h3>
+                  </div>
+                  
+                  {loading ? (
+                    <div className="flex items-center justify-center h-64">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                        {filteredEmployees.map((employee) => (
+                          <div key={employee.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer">
+                            <div className="flex items-center space-x-3 mb-3">
+                              <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                                <User className="w-6 h-6 text-white" />
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900">{employee.name}</h4>
+                                <p className="text-sm text-gray-500">{employee.designation}</p>
+                              </div>
+                              {getStatusIcon(employee.status)}
+                            </div>
+                            <div className="text-xs text-gray-500 space-y-1">
+                              <p>ID: {employee.employeeId}</p>
+                              <p>Dept: {employee.department}</p>
+                              <p>Role: {employee.role}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {employees.length === 0 && (
+                        <div className="text-center py-20 text-gray-500">
+                          <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                          <p>No employees found</p>
+                        </div>
+                      )}
+                      
+                      {totalPages > 1 && (
+                        <Pagination
+                          currentPage={currentPage}
+                          totalPages={totalPages}
+                          onPageChange={handlePageChange}
+                        />
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Users, Eye, Power } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { isAdmin } from '../../../utils/roleGuards';
+import Pagination from '../../../components/Pagination';
 import api from '../../../lib/api';
 import toast from 'react-hot-toast';
 
@@ -13,17 +14,27 @@ export default function SessionsPage() {
   const [userActivities, setUserActivities] = useState({});
   const [loading, setLoading] = useState(true);
   const [showActivities, setShowActivities] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     if (!user || !isAdmin(user.role)) return;
-    fetchSessions();
+    fetchSessions(1);
   }, [user]);
 
-  const fetchSessions = async () => {
+  const handlePageChange = (page) => {
+    fetchSessions(page);
+  };
+
+  const fetchSessions = async (page = 1) => {
     try {
       setLoading(true);
-      const response = await api.get('/sessions/active');
-      setSessions(response.data.data || []);
+      const response = await api.get(`/sessions/active?page=${page}&limit=10`);
+      setSessions(response.data.data?.sessions || response.data.data || []);
+      if (response.data.data?.pagination) {
+        setTotalPages(response.data.data.pagination.pages);
+        setCurrentPage(page);
+      }
     } catch (error) {
       toast.error('Failed to load sessions');
     } finally {
@@ -37,7 +48,7 @@ export default function SessionsPage() {
     try {
       await api.put(`/sessions/${sessionId}/terminate`);
       toast.success('Session terminated successfully');
-      fetchSessions();
+      fetchSessions(currentPage);
     } catch (error) {
       toast.error('Failed to terminate session');
     }
@@ -178,6 +189,14 @@ export default function SessionsPage() {
               </div>
             )}
           </div>
+        )}
+        
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
         )}
       </div>
     </div>

@@ -37,6 +37,7 @@ const getNavigation = (userRole) => {
     { name: 'Manage Users', href: '/dashboard/admin', icon: Users, roles: ['admin', 'hr'] },
     { name: 'Sessions', href: '/dashboard/sessions', icon: Users, roles: ['admin'] },
     { name: 'Activities', href: '/dashboard/activities', icon: Activity, roles: ['admin'] },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings, roles: ['admin'] },
     { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: ['admin', 'hr', 'payroll'] },
   ];
 };

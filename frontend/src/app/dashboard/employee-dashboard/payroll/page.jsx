@@ -26,9 +26,11 @@ export default function EmployeePayrollPage() {
     try {
       setLoading(true);
       const response = await payrollAPI.getByUser(user.id);
-      setPayslips(response.data.data);
-      if (response.data.data.length > 0) {
-        setSelectedPayslip(response.data.data[0]);
+      const data = response.data.data;
+      const payslipsArray = Array.isArray(data) ? data : data.payrolls || [];
+      setPayslips(payslipsArray);
+      if (payslipsArray.length > 0) {
+        setSelectedPayslip(payslipsArray[0]);
       }
     } catch (error) {
       console.error('Error fetching payslips:', error);

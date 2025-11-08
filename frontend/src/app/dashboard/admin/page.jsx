@@ -9,6 +9,7 @@ import { userRequestAPI } from '../../../lib/userRequestAPI';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROLES } from '../../../utils/constants';
 import { canManageUsers, isAdmin, isHR } from '../../../utils/roleGuards';
+import Pagination from '../../../components/Pagination';
 
 export default function AdminPage() {
   const { user: currentUser } = useAuth();
@@ -18,6 +19,9 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [showRequests, setShowRequests] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
   
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
 
@@ -34,21 +38,27 @@ export default function AdminPage() {
     
     console.log('Fetching users for role:', currentUser.role);
     console.log('API URL:', process.env.NEXT_PUBLIC_API_URL);
-    fetchUsers();
+    fetchUsers(1);
     if (isAdmin(currentUser.role)) {
       fetchPendingRequests();
     }
   }, [currentUser]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (page = 1) => {
     try {
       setLoading(true);
-      const response = await usersAPI.getAll();
+      const response = await usersAPI.getAll({ page, limit: 10 });
       console.log('Users API response:', response);
       
       // Handle different response structures
-      const userData = response.data?.data || response.data || [];
+      const userData = response.data?.data?.users || response.data?.data || response.data || [];
       setUsers(Array.isArray(userData) ? userData : []);
+      
+      if (response.data?.data?.pagination) {
+        setTotalPages(response.data.data.pagination.pages);
+        setTotalUsers(response.data.data.pagination.total);
+        setCurrentPage(page);
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
       const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
@@ -88,7 +98,7 @@ export default function AdminPage() {
           if (!response.ok) throw new Error('Failed to create user');
           toast.success('User created successfully!');
         }
-        fetchUsers();
+        fetchUsers(currentPage);
       } else {
         // HR needs to submit request for approval
         const requestType = editingUser ? 'UPDATE_USER' : 'CREATE_USER';
@@ -116,6 +126,8 @@ export default function AdminPage() {
     setValue('department', user.department || '');
     setValue('designation', user.designation || '');
     setValue('basicSalary', user.basicSalary || '');
+    setValue('accountNumber', user.accountNumber || '');
+    setValue('ifscCode', user.ifscCode || '');
     setShowForm(true);
   };
 
@@ -126,7 +138,7 @@ export default function AdminPage() {
       if (isAdmin(currentUser.role)) {
         await usersAPI.delete(userId);
         toast.success('User deleted successfully!');
-        fetchUsers();
+        fetchUsers(currentPage);
       } else {
         await userRequestAPI.create({
           type: 'DELETE_USER',
@@ -145,7 +157,7 @@ export default function AdminPage() {
       await userRequestAPI.approve(requestId, '');
       toast.success('Request approved!');
       fetchPendingRequests();
-      fetchUsers();
+      fetchUsers(currentPage);
     } catch (error) {
       toast.error('Failed to approve request');
     }
@@ -159,6 +171,10 @@ export default function AdminPage() {
     } catch (error) {
       toast.error('Failed to reject request');
     }
+  };
+
+  const handlePageChange = (page) => {
+    fetchUsers(page);
   };
 
   if (!currentUser) {
@@ -349,6 +365,30 @@ export default function AdminPage() {
                   <p className="mt-1 text-sm text-red-600">{errors.basicSalary.message}</p>
                 )}
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Account Number
+                </label>
+                <input
+                  {...register('accountNumber')}
+                  type="text"
+                  className="input-field"
+                  placeholder="Enter account number"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  IFSC Code
+                </label>
+                <input
+                  {...register('ifscCode')}
+                  type="text"
+                  className="input-field"
+                  placeholder="Enter IFSC code"
+                />
+              </div>
             </div>
             
             <div className="flex space-x-3">
@@ -408,8 +448,7 @@ export default function AdminPage() {
       {/* Users List */}
       <div className="card">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">All Users</h2>
-
+          <h2 className="text-lg font-semibold text-gray-900">All Users ({totalUsers})</h2>
         </div>
         
         <div className="overflow-x-auto">
@@ -433,6 +472,9 @@ export default function AdminPage() {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Basic Salary
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Bank Details
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -474,6 +516,13 @@ export default function AdminPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {tableUser.basicSalary ? `₹${tableUser.basicSalary.toLocaleString()}` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {tableUser.accountNumber && tableUser.ifscCode ? (
+                      <span className="text-green-600">✓ Complete</span>
+                    ) : (
+                      <span className="text-red-600">✗ Missing</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
@@ -536,6 +585,14 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+        
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        )}
       </div>
     </div>
   );

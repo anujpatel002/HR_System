@@ -8,38 +8,54 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  employeeId  String?  @unique
-  email       String   @unique
-  name        String
-  password    String
-  role        Role     @default(EMPLOYEE)
-  department  String?
-  designation String?
-  basicSalary Float?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  attendance Attendance[]
-  leaves     Leave[]
-  payrolls   Payroll[]
-  requests   UserRequest[]
-  activities ActivityLog[]
-  sessions   UserSession[]
+  id            String        @id @default(cuid())
+  email         String        @unique
+  name          String
+  password      String
+  role          Role          @default(EMPLOYEE)
+  department    String?
+  designation   String?
+  basicSalary   Float?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  employeeId    String?       @unique
+  bankName      String?
+  panNo         String?
+  uanNo         String?
+  address       String?
+  dateOfBirth   DateTime?
+  gender        String?
+  maritalStatus String?
+  nationality   String?
+  personalEmail String?
+  mobile        String?
+  company       String?
+  manager       String?
+  location      String?
+  dateOfJoining DateTime?
+  empCode       String?
+  accountNumber String?
+  ifscCode      String?
+  activities    ActivityLog[]
+  attendance    Attendance[]
+  employee      Employee?
+  leaves        Leave[]
+  payrolls      Payroll[]
+  requests      UserRequest[]
+  sessions      UserSession[]
 
   @@map("users")
 }
 
 model Attendance {
-  id         String    @id @default(cuid())
+  id         String           @id @default(cuid())
   userId     String
-  date       DateTime  @default(now())
+  date       DateTime         @default(now())
   checkIn    DateTime?
   checkOut   DateTime?
   totalHours Float?
   status     AttendanceStatus @default(PRESENT)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@map("attendance")
@@ -54,75 +70,113 @@ model Leave {
   reason    String
   status    LeaveStatus @default(PENDING)
   createdAt DateTime    @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("leaves")
 }
 
 model Payroll {
-  id         String   @id @default(cuid())
-  userId     String
-  month      String
-  year       Int
+  id          String   @id @default(cuid())
+  userId      String
+  month       String
+  year        Int
   basicSalary Float
-  gross      Float
-  pf         Float
-  tax        Float
-  deductions Float
-  netPay     Float
-  createdAt  DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gross       Float
+  pf          Float
+  tax         Float
+  deductions  Float
+  netPay      Float
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, month, year])
   @@map("payrolls")
 }
 
 model UserRequest {
-  id          String        @id @default(cuid())
-  requesterId String
-  type        RequestType
+  id           String        @id @default(cuid())
+  requesterId  String
+  type         RequestType
   targetUserId String?
-  data        Json
-  status      RequestStatus @default(PENDING)
-  adminNote   String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  requester User @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  data         Json
+  status       RequestStatus @default(PENDING)
+  adminNote    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  requester    User          @relation(fields: [requesterId], references: [id], onDelete: Cascade)
 
   @@map("user_requests")
 }
 
 model ActivityLog {
-  id          String       @id @default(cuid())
-  userId      String
-  action      ActivityType
-  targetType  String
-  targetId    String?
-  details     Json?
-  createdAt   DateTime     @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String       @id @default(cuid())
+  userId     String
+  action     ActivityType
+  targetType String
+  targetId   String?
+  details    Json?
+  createdAt  DateTime     @default(now())
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("activity_logs")
 }
 
 model UserSession {
-  id            String    @id @default(cuid())
-  userId        String
-  isActive      Boolean   @default(true)
-  loginTime     DateTime  @default(now())
-  logoutTime    DateTime?
+  id               String    @id @default(cuid())
+  userId           String
+  isActive         Boolean   @default(true)
+  loginTime        DateTime  @default(now())
+  logoutTime       DateTime?
   attendanceStatus String?
-  ipAddress     String?
-  userAgent     String?
-  lastActivity  DateTime  @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress        String?
+  userAgent        String?
+  lastActivity     DateTime  @default(now())
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_sessions")
+}
+
+model Employee {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  dateOfBirth   DateTime?
+  gender        String?
+  maritalStatus String?
+  nationality   String?
+  personalEmail String?
+  mobile        String?
+  address       String?
+  company       String?
+  manager       String?
+  location      String?
+  dateOfJoining DateTime?
+  empCode       String?
+  bankName      String?
+  accountNumber String?
+  ifscCode      String?
+  panNo         String?
+  uanNo         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("employees")
+}
+
+model WorkSettings {
+  id              String   @id @default(cuid())
+  workStartTime   String   @default("09:00")
+  workEndTime     String   @default("17:00")
+  workingDays     String   @default("1,2,3,4,5")
+  lunchBreakStart String   @default("12:00")
+  lunchBreakEnd   String   @default("13:00")
+  checkInPopup    Boolean  @default(true)
+  popupStartTime  String   @default("08:45")
+  popupEndTime    String   @default("09:15")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("work_settings")
 }
 
 enum Role {

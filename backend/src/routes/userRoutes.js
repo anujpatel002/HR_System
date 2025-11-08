@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/', authMiddleware, roleMiddleware(['ADMIN', 'HR_OFFICER', 'EMPLOYEE']), getAllUsers);
 router.get('/:id', authMiddleware, getUserById);
 router.post('/', authMiddleware, roleMiddleware(['ADMIN']), createUser);
-router.put('/:id', authMiddleware, roleMiddleware(['ADMIN', 'HR_OFFICER']), updateUser);
+router.put('/:id', authMiddleware, roleMiddleware(['ADMIN', 'HR_OFFICER', 'EMPLOYEE']), updateUser);
 router.delete('/:id', authMiddleware, roleMiddleware(['ADMIN']), deleteUser);
 
 module.exports = router;

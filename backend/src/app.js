@@ -14,7 +14,8 @@ const payrollRoutes = require('./routes/payrollRoutes');
 const userRequestRoutes = require('./routes/userRequestRoutes');
 const activityRoutes = require('./routes/activityRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
-const screenMonitorRoutes = require('./routes/screenMonitorRoutes');
+
+const settingsRoutes = require('./routes/settingsRoutes');
 
 const app = express();
 
@@ -47,7 +48,8 @@ app.use('/api/payroll', payrollRoutes);
 app.use('/api/user-requests', userRequestRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/sessions', sessionRoutes);
-app.use('/api/screen-monitor', screenMonitorRoutes);
+
+app.use('/api/settings', settingsRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

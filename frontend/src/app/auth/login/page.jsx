@@ -47,6 +47,9 @@ export default function LoginPage() {
     const result = await dispatch(loginUser(data));
     if (result.type === 'auth/login/fulfilled') {
       toast.success('Login successful!');
+      
+      // Bank details check temporarily disabled until schema is updated
+      
       router.push('/dashboard');
     }
   };

@@ -29,7 +29,8 @@ export default function AttendancePage() {
       ]);
 
       setTodayAttendance(todayRes.data.data);
-      setAttendanceHistory(historyRes.data.data);
+      const historyData = historyRes.data.data;
+      setAttendanceHistory(Array.isArray(historyData) ? historyData : historyData.attendance || []);
     } catch (error) {
       console.error('Error fetching attendance:', error);
       toast.error('Failed to load attendance data');

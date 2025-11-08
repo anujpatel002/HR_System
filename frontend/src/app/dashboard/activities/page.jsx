@@ -5,6 +5,7 @@ import { Activity, Filter } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { isAdmin } from '../../../utils/roleGuards';
 import api from '../../../lib/api';
+import Pagination from '../../../components/Pagination';
 import toast from 'react-hot-toast';
 
 export default function ActivitiesPage() {
@@ -12,23 +13,32 @@ export default function ActivitiesPage() {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({});
 
   useEffect(() => {
     if (!user || !isAdmin(user.role)) return;
-    fetchActivities();
+    fetchActivities(1);
   }, [user, filter]);
 
-  const fetchActivities = async () => {
+  const fetchActivities = async (page = 1) => {
     try {
       setLoading(true);
-      const params = filter ? `?type=${filter}` : '';
-      const response = await api.get(`/activities${params}`);
+      const params = new URLSearchParams({ page, limit: 10 });
+      if (filter) params.append('type', filter);
+      const response = await api.get(`/activities?${params}`);
       setActivities(response.data.data.activities || []);
+      setPagination(response.data.data.pagination || {});
+      setCurrentPage(page);
     } catch (error) {
       toast.error('Failed to load activities');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageChange = (page) => {
+    fetchActivities(page);
   };
 
   if (!user || !isAdmin(user.role)) {
@@ -138,6 +148,14 @@ export default function ActivitiesPage() {
               </div>
             )}
           </div>
+        )}
+        
+        {pagination.pages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={pagination.pages}
+            onPageChange={handlePageChange}
+          />
         )}
       </div>
     </div>

@@ -33,7 +33,10 @@ export default function EmployeeDashboardPage() {
       setLoading(true);
       const response = await usersAPI.getAll();
       
-      const employeesWithStatus = response.data.data.map(emp => ({
+      const data = response.data.data;
+      const usersArray = data.users || [];
+      
+      const employeesWithStatus = usersArray.map(emp => ({
         ...emp,
         status: Math.random() > 0.6 ? 'present' : Math.random() > 0.5 ? 'leave' : 'absent'
       }));
@@ -42,6 +45,7 @@ export default function EmployeeDashboardPage() {
     } catch (error) {
       console.error('Error fetching employees:', error);
       toast.error('Failed to load employees');
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
@@ -54,17 +58,14 @@ export default function EmployeeDashboardPage() {
       if (attendance?.checkIn) {
         setCheckInTime(new Date(attendance.checkIn));
         if (attendance.checkOut) {
-          // Already checked out - show attendance marked
           setIsCheckedIn(false);
           setIsCheckedOut(true);
           setCheckOutTime(new Date(attendance.checkOut));
         } else {
-          // Checked in but not checked out
           setIsCheckedIn(true);
           setIsCheckedOut(false);
         }
       } else {
-        // No attendance today
         setIsCheckedIn(false);
         setIsCheckedOut(false);
         setCheckInTime(null);
@@ -96,11 +97,7 @@ export default function EmployeeDashboardPage() {
       setCheckOutTime(new Date());
       toast.success('Checked out successfully!');
     } catch (error) {
-      if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
-      } else {
-        toast.error('Failed to check out');
-      }
+      toast.error('Failed to check out');
     }
   };
 
