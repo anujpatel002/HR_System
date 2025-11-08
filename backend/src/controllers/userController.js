@@ -12,7 +12,12 @@ const createUserSchema = Joi.object({
   department: Joi.string().required(),
   designation: Joi.string().required(),
   basicSalary: Joi.number().positive().required(),
-  role: Joi.string().valid('ADMIN', 'EMPLOYEE', 'HR_OFFICER', 'PAYROLL_OFFICER').default('EMPLOYEE')
+  role: Joi.string().valid('ADMIN', 'EMPLOYEE', 'HR_OFFICER', 'PAYROLL_OFFICER', 'MANAGER').default('EMPLOYEE'),
+  manager: Joi.string().when('role', {
+    is: 'EMPLOYEE',
+    then: Joi.required(),
+    otherwise: Joi.optional()
+  })
 });
 
 const updateUserSchema = Joi.object({
@@ -21,7 +26,7 @@ const updateUserSchema = Joi.object({
   department: Joi.string().optional(),
   designation: Joi.string().optional(),
   basicSalary: Joi.number().positive().optional(),
-  role: Joi.string().valid('ADMIN', 'EMPLOYEE', 'HR_OFFICER', 'PAYROLL_OFFICER').optional(),
+  role: Joi.string().valid('ADMIN', 'EMPLOYEE', 'HR_OFFICER', 'PAYROLL_OFFICER', 'MANAGER').optional(),
   bankName: Joi.string().optional(),
   accountNumber: Joi.string().optional(),
   ifscCode: Joi.string().optional(),
@@ -169,6 +174,21 @@ const updateUser = async (req, res) => {
       return error(res, 'No valid fields to update', 400);
     }
 
+    // Check manager constraint if designation is being updated to Manager
+    if (req.body.designation === 'Manager' && (req.body.department || existingUser.department)) {
+      const department = req.body.department || existingUser.department;
+      const existingManager = await prisma.users.findFirst({
+        where: {
+          department: department,
+          designation: 'Manager',
+          id: { not: id }
+        }
+      });
+      if (existingManager) {
+        return error(res, `Department ${department} already has a manager`, 400);
+      }
+    }
+
     // Perform actual database update
     const updatedUser = await prisma.users.update({
       where: { id },
@@ -253,6 +273,32 @@ const createUser = async (req, res) => {
       return error(res, 'Email already exists', 400);
     }
 
+    // Check manager constraint for department
+    if (value.designation === 'Manager' && value.department) {
+      const existingManager = await prisma.users.findFirst({
+        where: {
+          department: value.department,
+          designation: 'Manager'
+        }
+      });
+      if (existingManager) {
+        return error(res, `Department ${value.department} already has a manager`, 400);
+      }
+    }
+
+    // Validate manager assignment for employees
+    if (value.role === 'EMPLOYEE' && value.manager) {
+      const managerExists = await prisma.users.findUnique({
+        where: { id: value.manager }
+      });
+      if (!managerExists) {
+        return error(res, 'Invalid manager ID', 400);
+      }
+      if (managerExists.role !== 'MANAGER' && managerExists.designation !== 'Manager') {
+        return error(res, 'Assigned manager must have MANAGER role or Manager designation', 400);
+      }
+    }
+
     // Generate employee ID
     const employeeId = await generateEmployeeId(value.name);
     
@@ -297,4 +343,42 @@ const createUser = async (req, res) => {
   }
 };
 
-module.exports = { getAllUsers, getUserById, createUser, updateUser, deleteUser };
+const getDepartments = async (req, res) => {
+  try {
+    const departments = await prisma.users.findMany({
+      select: { department: true },
+      where: { department: { not: null } },
+      distinct: ['department']
+    });
+
+    const departmentList = departments.map(d => d.department).filter(Boolean);
+    success(res, departmentList, 'Departments retrieved successfully');
+  } catch (err) {
+    error(res, 'Failed to get departments', 500);
+  }
+};
+
+const getManagers = async (req, res) => {
+  try {
+    const managers = await prisma.users.findMany({
+      where: {
+        OR: [
+          { role: 'MANAGER' },
+          { designation: 'Manager' }
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        designation: true
+      }
+    });
+
+    success(res, managers, 'Managers retrieved successfully');
+  } catch (err) {
+    error(res, 'Failed to get managers', 500);
+  }
+};
+
+module.exports = { getAllUsers, getUserById, createUser, updateUser, deleteUser, getDepartments, getManagers };

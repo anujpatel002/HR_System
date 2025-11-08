@@ -9,10 +9,10 @@ const getActivities = async (req, res) => {
     const where = type ? { action: type } : {};
 
     const [activities, total] = await Promise.all([
-      prisma.activityLog.findMany({
+      prisma.activity_logs.findMany({
         where,
         include: {
-          user: {
+          users: {
             select: { name: true, email: true, role: true }
           }
         },
@@ -20,11 +20,17 @@ const getActivities = async (req, res) => {
         skip: parseInt(skip),
         take: parseInt(limit)
       }),
-      prisma.activityLog.count({ where })
+      prisma.activity_logs.count({ where })
     ]);
 
+    // Map users back to user for frontend compatibility
+    const mappedActivities = activities.map(activity => ({
+      ...activity,
+      user: activity.users
+    }));
+
     success(res, {
-      activities,
+      activities: mappedActivities,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

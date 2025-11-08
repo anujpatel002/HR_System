@@ -20,7 +20,7 @@ const applyLeave = async (req, res) => {
     const userId = req.user.id;
 
     // Check for overlapping leaves
-    const overlappingLeave = await prisma.leave.findFirst({
+    const overlappingLeave = await prisma.leaves.findFirst({
       where: {
         userId,
         status: { in: ['PENDING', 'APPROVED'] },
@@ -37,13 +37,13 @@ const applyLeave = async (req, res) => {
       return error(res, 'Leave dates overlap with existing leave', 400);
     }
 
-    const leave = await prisma.leave.create({
+    const leave = await prisma.leaves.create({
       data: {
         ...value,
         userId
       },
       include: {
-        user: {
+        users: {
           select: { name: true, email: true }
         }
       }
@@ -75,18 +75,18 @@ const getLeaves = async (req, res) => {
     }
 
     const [leaves, total] = await Promise.all([
-      prisma.leave.findMany({
+      prisma.leaves.findMany({
         where: whereClause,
         orderBy: { createdAt: 'desc' },
         skip: parseInt(skip),
         take: parseInt(limit),
         include: {
-          user: {
+          users: {
             select: { name: true, email: true }
           }
         }
       }),
-      prisma.leave.count({ where: whereClause })
+      prisma.leaves.count({ where: whereClause })
     ]);
 
     success(res, {
@@ -114,18 +114,18 @@ const getAllLeaves = async (req, res) => {
     }
 
     const [leaves, total] = await Promise.all([
-      prisma.leave.findMany({
+      prisma.leaves.findMany({
         where: whereClause,
         orderBy: { createdAt: 'desc' },
         skip: parseInt(skip),
         take: parseInt(limit),
         include: {
-          user: {
+          users: {
             select: { name: true, email: true, department: true }
           }
         }
       }),
-      prisma.leave.count({ where: whereClause })
+      prisma.leaves.count({ where: whereClause })
     ]);
 
     success(res, {
@@ -151,7 +151,7 @@ const updateLeaveStatus = async (req, res) => {
       return error(res, 'Invalid status', 400);
     }
 
-    const leave = await prisma.leave.findUnique({ where: { id } });
+    const leave = await prisma.leaves.findUnique({ where: { id } });
     if (!leave) {
       return error(res, 'Leave not found', 404);
     }
@@ -160,11 +160,11 @@ const updateLeaveStatus = async (req, res) => {
       return error(res, 'Leave already processed', 400);
     }
 
-    const updatedLeave = await prisma.leave.update({
+    const updatedLeave = await prisma.leaves.update({
       where: { id },
       data: { status },
       include: {
-        user: {
+        users: {
           select: { name: true, email: true }
         }
       }

@@ -25,7 +25,7 @@ const generatePayroll = async (req, res) => {
       whereClause.id = { in: userIds };
     }
 
-    const users = await prisma.user.findMany({
+    const users = await prisma.users.findMany({
       where: whereClause,
       select: {
         id: true,
@@ -43,7 +43,7 @@ const generatePayroll = async (req, res) => {
 
     for (const user of users) {
       // Check if payroll already exists
-      const existingPayroll = await prisma.payroll.findUnique({
+      const existingPayroll = await prisma.payrolls.findUnique({
         where: {
           userId_month_year: {
             userId: user.id,
@@ -61,7 +61,7 @@ const generatePayroll = async (req, res) => {
       const startDate = new Date(year, parseInt(month) - 1, 1);
       const endDate = new Date(year, parseInt(month), 0);
 
-      const approvedLeaves = await prisma.leave.findMany({
+      const approvedLeaves = await prisma.leaves.findMany({
         where: {
           userId: user.id,
           status: 'APPROVED',
@@ -82,7 +82,7 @@ const generatePayroll = async (req, res) => {
       const payrollData = calculatePayroll(user.basicSalary, unpaidLeaveDays);
 
       // Create payroll record
-      const payroll = await prisma.payroll.create({
+      const payroll = await prisma.payrolls.create({
         data: {
           userId: user.id,
           month,
@@ -91,7 +91,7 @@ const generatePayroll = async (req, res) => {
           ...payrollData
         },
         include: {
-          user: {
+          users: {
             select: { name: true, email: true }
           }
         }
@@ -127,18 +127,18 @@ const getPayroll = async (req, res) => {
     }
 
     const [payrolls, total] = await Promise.all([
-      prisma.payroll.findMany({
+      prisma.payrolls.findMany({
         where: whereClause,
         orderBy: [{ year: 'desc' }, { month: 'desc' }],
         skip: parseInt(skip),
         take: parseInt(limit),
         include: {
-          user: {
+          users: {
             select: { name: true, email: true, department: true }
           }
         }
       }),
-      prisma.payroll.count({ where: whereClause })
+      prisma.payrolls.count({ where: whereClause })
     ]);
 
     success(res, {
@@ -167,18 +167,18 @@ const getAllPayrolls = async (req, res) => {
     }
 
     const [payrolls, total] = await Promise.all([
-      prisma.payroll.findMany({
+      prisma.payrolls.findMany({
         where: whereClause,
         orderBy: [{ year: 'desc' }, { month: 'desc' }, { createdAt: 'desc' }],
         skip: parseInt(skip),
         take: parseInt(limit),
         include: {
-          user: {
+          users: {
             select: { name: true, email: true, department: true }
           }
         }
       }),
-      prisma.payroll.count({ where: whereClause })
+      prisma.payrolls.count({ where: whereClause })
     ]);
 
     success(res, {
@@ -202,7 +202,7 @@ const getPayrollStats = async (req, res) => {
     const currentYear = currentDate.getFullYear();
 
     // Get all payroll stats
-    const payrollStats = await prisma.payroll.aggregate({
+    const payrollStats = await prisma.payrolls.aggregate({
       _sum: {
         gross: true,
         netPay: true,
@@ -214,7 +214,7 @@ const getPayrollStats = async (req, res) => {
     });
 
     // Get total employees
-    const totalEmployees = await prisma.user.count({
+    const totalEmployees = await prisma.users.count({
       where: { role: 'EMPLOYEE' }
     });
 

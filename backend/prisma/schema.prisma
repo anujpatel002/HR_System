@@ -117,7 +117,7 @@ model users {
   name          String
   password      String
   role          Role            @default(EMPLOYEE)
-  department    String?
+  department    Department?
   designation   String?
   basicSalary   Float?
   createdAt     DateTime        @default(now())
@@ -208,4 +208,14 @@ enum Role {
   EMPLOYEE
   HR_OFFICER
   PAYROLL_OFFICER
+  MANAGER
+}
+
+enum Department {
+  IT
+  HR
+  FINANCE
+  MARKETING
+  OPERATIONS
+  SALES
 }

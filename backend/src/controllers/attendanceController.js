@@ -115,7 +115,7 @@ const getAttendance = async (req, res) => {
         skip: parseInt(skip),
         take: parseInt(limit),
         include: {
-          user: {
+          users: {
             select: { name: true, email: true }
           }
         }

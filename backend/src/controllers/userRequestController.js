@@ -22,14 +22,14 @@ const createRequest = async (req, res) => {
         return error(res, 'HR can only create EMPLOYEE users', 403);
       }
       if (value.type === 'UPDATE_USER' || value.type === 'DELETE_USER') {
-        const targetUser = await prisma.user.findUnique({ where: { id: value.targetUserId } });
+        const targetUser = await prisma.users.findUnique({ where: { id: value.targetUserId } });
         if (!targetUser || targetUser.role !== 'EMPLOYEE') {
           return error(res, 'HR can only manage EMPLOYEE users', 403);
         }
       }
     }
 
-    const request = await prisma.userRequest.create({
+    const request = await prisma.user_requests.create({
       data: {
         requesterId: req.user.id,
         type: value.type,
@@ -46,10 +46,10 @@ const createRequest = async (req, res) => {
 
 const getPendingRequests = async (req, res) => {
   try {
-    const requests = await prisma.userRequest.findMany({
+    const requests = await prisma.user_requests.findMany({
       where: { status: 'PENDING' },
       include: {
-        requester: {
+        users: {
           select: { name: true, email: true, role: true }
         }
       },
@@ -67,7 +67,7 @@ const approveRequest = async (req, res) => {
     const { id } = req.params;
     const { adminNote } = req.body;
 
-    const request = await prisma.userRequest.findUnique({ where: { id } });
+    const request = await prisma.user_requests.findUnique({ where: { id } });
     if (!request) {
       return error(res, 'Request not found', 404);
     }
@@ -88,7 +88,7 @@ const approveRequest = async (req, res) => {
       await deleteUser(mockReq, mockRes);
     }
 
-    await prisma.userRequest.update({
+    await prisma.user_requests.update({
       where: { id },
       data: { status: 'APPROVED', adminNote }
     });
@@ -104,7 +104,7 @@ const rejectRequest = async (req, res) => {
     const { id } = req.params;
     const { adminNote } = req.body;
 
-    await prisma.userRequest.update({
+    await prisma.user_requests.update({
       where: { id },
       data: { status: 'REJECTED', adminNote }
     });

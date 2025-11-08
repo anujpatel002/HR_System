@@ -7,10 +7,10 @@ const getActiveSessions = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const [sessions, total] = await Promise.all([
-      prisma.userSession.findMany({
+      prisma.user_sessions.findMany({
         where: { isActive: true },
         include: {
-          user: {
+          users: {
             select: { name: true, email: true, role: true, department: true }
           }
         },
@@ -18,7 +18,7 @@ const getActiveSessions = async (req, res) => {
         skip: parseInt(skip),
         take: parseInt(limit)
       }),
-      prisma.userSession.count({ where: { isActive: true } })
+      prisma.user_sessions.count({ where: { isActive: true } })
     ]);
 
     // Get attendance status for each user
@@ -62,16 +62,16 @@ const terminateSession = async (req, res) => {
   try {
     const { sessionId } = req.params;
 
-    const session = await prisma.userSession.findUnique({
+    const session = await prisma.user_sessions.findUnique({
       where: { id: sessionId },
-      include: { user: true }
+      include: { users: true }
     });
 
     if (!session) {
       return error(res, 'Session not found', 404);
     }
 
-    await prisma.userSession.update({
+    await prisma.user_sessions.update({
       where: { id: sessionId },
       data: { 
         isActive: false,
@@ -94,12 +94,12 @@ const getUserActivity = async (req, res) => {
     const { userId } = req.params;
     const { limit = 20 } = req.query;
 
-    const activities = await prisma.activityLog.findMany({
+    const activities = await prisma.activity_logs.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       take: parseInt(limit),
       include: {
-        user: {
+        users: {
           select: { name: true, email: true }
         }
       }
