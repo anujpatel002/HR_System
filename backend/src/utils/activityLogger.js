@@ -2,7 +2,7 @@ const prisma = require('../config/db');
 
 const logActivity = async (userId, action, targetType, targetId = null, details = null) => {
   try {
-    await prisma.activityLog.create({
+    await prisma.activity_logs.create({
       data: {
         userId,
         action,

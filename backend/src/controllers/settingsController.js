@@ -3,11 +3,11 @@ const { success, error } = require('../utils/responseHandler');
 
 const getWorkSettings = async (req, res) => {
   try {
-    let settings = await prisma.workSettings.findFirst();
+    let settings = await prisma.work_settings.findFirst();
     
     if (!settings) {
       // Create default settings if none exist
-      settings = await prisma.workSettings.create({
+      settings = await prisma.work_settings.create({
         data: {}
       });
     }
@@ -31,14 +31,14 @@ const updateWorkSettings = async (req, res) => {
       popupEndTime
     } = req.body;
 
-    let settings = await prisma.workSettings.findFirst();
+    let settings = await prisma.work_settings.findFirst();
     
     if (!settings) {
-      settings = await prisma.workSettings.create({
+      settings = await prisma.work_settings.create({
         data: req.body
       });
     } else {
-      settings = await prisma.workSettings.update({
+      settings = await prisma.work_settings.update({
         where: { id: settings.id },
         data: req.body
       });

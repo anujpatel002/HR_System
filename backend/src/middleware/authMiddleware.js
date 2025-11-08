@@ -11,7 +11,7 @@ const authMiddleware = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: decoded.userId },
       select: { id: true, email: true, name: true, role: true }
     });
@@ -27,13 +27,17 @@ const authMiddleware = async (req, res, next) => {
     }
 
     // Update last activity for active sessions
-    await prisma.userSession.updateMany({
-      where: { 
-        userId: user.id,
-        isActive: true
-      },
-      data: { lastActivity: new Date() }
-    });
+    try {
+      await prisma.user_sessions.updateMany({
+        where: { 
+          userId: user.id,
+          isActive: true
+        },
+        data: { lastActivity: new Date() }
+      });
+    } catch (err) {
+      // Ignore session update errors
+    }
 
     req.user = user;
     next();

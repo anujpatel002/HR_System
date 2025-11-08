@@ -7,137 +7,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id            String        @id @default(cuid())
-  email         String        @unique
-  name          String
-  password      String
-  role          Role          @default(EMPLOYEE)
-  department    String?
-  designation   String?
-  basicSalary   Float?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  employeeId    String?       @unique
-  bankName      String?
-  panNo         String?
-  uanNo         String?
-  address       String?
-  dateOfBirth   DateTime?
-  gender        String?
-  maritalStatus String?
-  nationality   String?
-  personalEmail String?
-  mobile        String?
-  company       String?
-  manager       String?
-  location      String?
-  dateOfJoining DateTime?
-  empCode       String?
-  accountNumber String?
-  ifscCode      String?
-  activities    ActivityLog[]
-  attendance    Attendance[]
-  employee      Employee?
-  leaves        Leave[]
-  payrolls      Payroll[]
-  requests      UserRequest[]
-  sessions      UserSession[]
-
-  @@map("users")
-}
-
-model Attendance {
-  id         String           @id @default(cuid())
-  userId     String
-  date       DateTime         @default(now())
-  checkIn    DateTime?
-  checkOut   DateTime?
-  totalHours Float?
-  status     AttendanceStatus @default(PRESENT)
-  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, date])
-  @@map("attendance")
-}
-
-model Leave {
-  id        String      @id @default(cuid())
-  userId    String
-  type      LeaveType
-  startDate DateTime
-  endDate   DateTime
-  reason    String
-  status    LeaveStatus @default(PENDING)
-  createdAt DateTime    @default(now())
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("leaves")
-}
-
-model Payroll {
-  id          String   @id @default(cuid())
-  userId      String
-  month       String
-  year        Int
-  basicSalary Float
-  gross       Float
-  pf          Float
-  tax         Float
-  deductions  Float
-  netPay      Float
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, month, year])
-  @@map("payrolls")
-}
-
-model UserRequest {
-  id           String        @id @default(cuid())
-  requesterId  String
-  type         RequestType
-  targetUserId String?
-  data         Json
-  status       RequestStatus @default(PENDING)
-  adminNote    String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  requester    User          @relation(fields: [requesterId], references: [id], onDelete: Cascade)
-
-  @@map("user_requests")
-}
-
-model ActivityLog {
-  id         String       @id @default(cuid())
+model activity_logs {
+  id         String       @id
   userId     String
   action     ActivityType
   targetType String
   targetId   String?
   details    Json?
   createdAt  DateTime     @default(now())
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("activity_logs")
+  users      users        @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model UserSession {
-  id               String    @id @default(cuid())
-  userId           String
-  isActive         Boolean   @default(true)
-  loginTime        DateTime  @default(now())
-  logoutTime       DateTime?
-  attendanceStatus String?
-  ipAddress        String?
-  userAgent        String?
-  lastActivity     DateTime  @default(now())
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+model attendance {
+  id         String           @id
+  userId     String
+  date       DateTime         @default(now())
+  checkIn    DateTime?
+  checkOut   DateTime?
+  totalHours Float?
+  status     AttendanceStatus @default(PRESENT)
+  users      users            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("user_sessions")
+  @@unique([userId, date])
 }
 
-model Employee {
-  id            String    @id @default(cuid())
+model employees {
+  id            String    @id
   userId        String    @unique
   dateOfBirth   DateTime?
   gender        String?
@@ -157,14 +52,105 @@ model Employee {
   panNo         String?
   uanNo         String?
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("employees")
+  updatedAt     DateTime
+  users         users     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model WorkSettings {
-  id              String   @id @default(cuid())
+model leaves {
+  id        String      @id
+  userId    String
+  type      LeaveType
+  startDate DateTime
+  endDate   DateTime
+  reason    String
+  status    LeaveStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  users     users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model payrolls {
+  id          String   @id
+  userId      String
+  month       String
+  year        Int
+  basicSalary Float
+  gross       Float
+  pf          Float
+  tax         Float
+  deductions  Float
+  netPay      Float
+  createdAt   DateTime @default(now())
+  users       users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month, year])
+}
+
+model user_requests {
+  id           String        @id
+  requesterId  String
+  type         RequestType
+  targetUserId String?
+  data         Json
+  status       RequestStatus @default(PENDING)
+  adminNote    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime
+  users        users         @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+}
+
+model user_sessions {
+  id               String    @id
+  userId           String
+  isActive         Boolean   @default(true)
+  loginTime        DateTime  @default(now())
+  logoutTime       DateTime?
+  attendanceStatus String?
+  ipAddress        String?
+  userAgent        String?
+  lastActivity     DateTime  @default(now())
+  users            users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model users {
+  id            String          @id
+  email         String          @unique
+  name          String
+  password      String
+  role          Role            @default(EMPLOYEE)
+  department    String?
+  designation   String?
+  basicSalary   Float?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime
+  employeeId    String?         @unique
+  bankName      String?
+  panNo         String?
+  uanNo         String?
+  address       String?
+  dateOfBirth   DateTime?
+  gender        String?
+  maritalStatus String?
+  nationality   String?
+  personalEmail String?
+  mobile        String?
+  company       String?
+  manager       String?
+  location      String?
+  dateOfJoining DateTime?
+  empCode       String?
+  accountNumber String?
+  ifscCode      String?
+  activity_logs activity_logs[]
+  attendance    attendance[]
+  employees     employees?
+  leaves        leaves[]
+  payrolls      payrolls[]
+  user_requests user_requests[]
+  user_sessions user_sessions[]
+}
+
+model work_settings {
+  id              String   @id
   workStartTime   String   @default("09:00")
   workEndTime     String   @default("17:00")
   workingDays     String   @default("1,2,3,4,5")
@@ -174,22 +160,27 @@ model WorkSettings {
   popupStartTime  String   @default("08:45")
   popupEndTime    String   @default("09:15")
   createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@map("work_settings")
+  updatedAt       DateTime
 }
 
-enum Role {
-  ADMIN
-  EMPLOYEE
-  HR_OFFICER
-  PAYROLL_OFFICER
+enum ActivityType {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
 }
 
 enum AttendanceStatus {
   PRESENT
   ABSENT
   HALF_DAY
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum LeaveType {
@@ -200,7 +191,7 @@ enum LeaveType {
   PATERNITY
 }
 
-enum LeaveStatus {
+enum RequestStatus {
   PENDING
   APPROVED
   REJECTED
@@ -212,16 +203,9 @@ enum RequestType {
   DELETE_USER
 }
 
-enum RequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum ActivityType {
-  CREATE
-  UPDATE
-  DELETE
-  LOGIN
-  LOGOUT
+enum Role {
+  ADMIN
+  EMPLOYEE
+  HR_OFFICER
+  PAYROLL_OFFICER
 }

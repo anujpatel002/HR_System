@@ -28,7 +28,7 @@ const register = async (req, res) => {
       return error(res, validationError.details[0].message, 400);
     }
 
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prisma.users.findUnique({
       where: { email: value.email }
     });
 
@@ -38,7 +38,7 @@ const register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(value.password, 12);
     
-    const user = await prisma.user.create({
+    const user = await prisma.users.create({
       data: {
         ...value,
         password: hashedPassword
@@ -66,7 +66,7 @@ const login = async (req, res) => {
       return error(res, validationError.details[0].message, 400);
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { email: value.email }
     });
 
@@ -82,27 +82,6 @@ const login = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    // Create session
-    await prisma.userSession.create({
-      data: {
-        userId: user.id,
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent'],
-        lastActivity: new Date()
-      }
-    });
-
-    // Clear any existing screen share data for fresh login
-    if (global.userScreenshots) {
-      global.userScreenshots.delete(user.id);
-    }
-    if (global.screenShareRequests) {
-      global.screenShareRequests.delete(user.id);
-    }
-
-    // Log activity
-    await logActivity(user.id, 'LOGIN', 'AUTH', null, { email: user.email });
-
     success(res, {
       user: {
         id: user.id,
@@ -115,6 +94,7 @@ const login = async (req, res) => {
       token
     }, 'Login successful');
   } catch (err) {
+    console.error('Login error:', err);
     error(res, 'Login failed', 500);
   }
 };
@@ -125,7 +105,7 @@ const logout = async (req, res) => {
     await logActivity(req.user.id, 'LOGOUT', 'AUTH');
     
     // Terminate active sessions
-    await prisma.userSession.updateMany({
+    await prisma.user_sessions.updateMany({
       where: { 
         userId: req.user.id,
         isActive: true
@@ -151,7 +131,7 @@ const logout = async (req, res) => {
 
 const getProfile = async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: req.user.id },
       select: {
         id: true,
@@ -160,11 +140,21 @@ const getProfile = async (req, res) => {
         role: true,
         department: true,
         designation: true,
-        basicSalary: true
+        basicSalary: true,
+        dateOfJoining: true,
+        mobile: true,
+        address: true,
+        createdAt: true
       }
     });
 
-    success(res, user, 'Profile retrieved successfully');
+    // Map mobile to phone for frontend compatibility
+    const responseUser = {
+      ...user,
+      phone: user.mobile
+    };
+
+    success(res, responseUser, 'Profile retrieved successfully');
   } catch (err) {
     error(res, 'Failed to get profile', 500);
   }

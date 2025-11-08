@@ -37,7 +37,7 @@ const getAllUsers = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const [users, total] = await Promise.all([
-      prisma.user.findMany({
+      prisma.users.findMany({
         select: {
           id: true,
           employeeId: true,
@@ -47,17 +47,28 @@ const getAllUsers = async (req, res) => {
           department: true,
           designation: true,
           basicSalary: true,
+          bankName: true,
+          accountNumber: true,
+          ifscCode: true,
+          panNo: true,
+          uanNo: true,
           createdAt: true
         },
         orderBy: { createdAt: 'desc' },
         skip: parseInt(skip),
         take: parseInt(limit)
       }),
-      prisma.user.count()
+      prisma.users.count()
     ]);
 
+    // Add bank details status to each user
+    const usersWithStatus = users.map(user => ({
+      ...user,
+      bankDetailsStatus: (user.bankName && user.accountNumber && user.ifscCode) ? 'Found' : 'Not Found'
+    }));
+
     success(res, {
-      users,
+      users: usersWithStatus,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -74,7 +85,7 @@ const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id },
       select: {
         id: true,
@@ -126,29 +137,40 @@ const updateUser = async (req, res) => {
     }
 
     // Check if user exists first
-    const existingUser = await prisma.user.findUnique({ where: { id } });
+    const existingUser = await prisma.users.findUnique({ where: { id } });
     if (!existingUser) {
       return error(res, 'User not found', 404);
     }
 
     // Update all profile fields
     const updateData = {};
-    if (req.body.name !== undefined) updateData.name = req.body.name;
-    if (req.body.department !== undefined) updateData.department = req.body.department;
-    if (req.body.designation !== undefined) updateData.designation = req.body.designation;
-    if (req.body.phone !== undefined) updateData.mobile = req.body.phone;
-    if (req.body.address !== undefined) updateData.address = req.body.address;
-    if (req.body.maritalStatus !== undefined) updateData.maritalStatus = req.body.maritalStatus;
-    if (req.body.nationality !== undefined) updateData.nationality = req.body.nationality;
-    if (req.body.company !== undefined) updateData.company = req.body.company;
-    if (req.body.manager !== undefined) updateData.manager = req.body.manager;
-    if (req.body.location !== undefined) updateData.location = req.body.location;
-    if (req.body.empCode !== undefined) updateData.empCode = req.body.empCode;
+    if (req.body.name !== undefined && req.body.name !== null) updateData.name = req.body.name;
+    if (req.body.department !== undefined && req.body.department !== null) updateData.department = req.body.department;
+    if (req.body.designation !== undefined && req.body.designation !== null) updateData.designation = req.body.designation;
+    if (req.body.phone !== undefined && req.body.phone !== null) updateData.mobile = req.body.phone;
+    if (req.body.mobile !== undefined && req.body.mobile !== null) updateData.mobile = req.body.mobile;
+    if (req.body.address !== undefined && req.body.address !== null) updateData.address = req.body.address;
+    if (req.body.bankName !== undefined && req.body.bankName !== null) updateData.bankName = req.body.bankName;
+    if (req.body.accountNumber !== undefined && req.body.accountNumber !== null) updateData.accountNumber = req.body.accountNumber;
+    if (req.body.ifscCode !== undefined && req.body.ifscCode !== null) updateData.ifscCode = req.body.ifscCode;
+    if (req.body.panNo !== undefined && req.body.panNo !== null) updateData.panNo = req.body.panNo;
+    if (req.body.uanNo !== undefined && req.body.uanNo !== null) updateData.uanNo = req.body.uanNo;
+    if (req.body.maritalStatus !== undefined && req.body.maritalStatus !== null) updateData.maritalStatus = req.body.maritalStatus;
+    if (req.body.nationality !== undefined && req.body.nationality !== null) updateData.nationality = req.body.nationality;
+    if (req.body.company !== undefined && req.body.company !== null) updateData.company = req.body.company;
+    if (req.body.manager !== undefined && req.body.manager !== null) updateData.manager = req.body.manager;
+    if (req.body.location !== undefined && req.body.location !== null) updateData.location = req.body.location;
+    if (req.body.empCode !== undefined && req.body.empCode !== null) updateData.empCode = req.body.empCode;
     
     console.log('Update data:', updateData);
 
+    // Check if there's anything to update
+    if (Object.keys(updateData).length === 0) {
+      return error(res, 'No valid fields to update', 400);
+    }
+
     // Perform actual database update
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await prisma.users.update({
       where: { id },
       data: updateData,
       select: {
@@ -162,6 +184,11 @@ const updateUser = async (req, res) => {
         basicSalary: true,
         mobile: true,
         address: true,
+        bankName: true,
+        accountNumber: true,
+        ifscCode: true,
+        panNo: true,
+        uanNo: true,
         maritalStatus: true,
         nationality: true,
         company: true,
@@ -196,12 +223,12 @@ const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await prisma.user.findUnique({ where: { id } });
+    const user = await prisma.users.findUnique({ where: { id } });
     if (!user) {
       return error(res, 'User not found', 404);
     }
 
-    await prisma.user.delete({ where: { id } });
+    await prisma.users.delete({ where: { id } });
     
     // Log activity
     await logActivity(req.user.id, 'DELETE', 'USER', id, { name: user.name, email: user.email });
@@ -221,7 +248,7 @@ const createUser = async (req, res) => {
     }
 
     // Check if email already exists
-    const existingUser = await prisma.user.findUnique({ where: { email: value.email } });
+    const existingUser = await prisma.users.findUnique({ where: { email: value.email } });
     if (existingUser) {
       return error(res, 'Email already exists', 400);
     }
@@ -238,7 +265,7 @@ const createUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(defaultPassword, 12);
 
     // Create user
-    const newUser = await prisma.user.create({
+    const newUser = await prisma.users.create({
       data: {
         ...value,
         employeeId,
