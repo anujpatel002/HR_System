@@ -18,11 +18,12 @@ const markAttendance = async (req, res) => {
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-    let attendance = await prisma.attendance.findUnique({
+    let attendance = await prisma.attendance.findFirst({
       where: {
-        userId_date: {
-          userId,
-          date: todayStart
+        userId,
+        date: {
+          gte: todayStart,
+          lt: new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
         }
       }
     });
@@ -34,24 +35,25 @@ const markAttendance = async (req, res) => {
         return error(res, 'Already checked in today', 400);
       }
 
-      attendance = await prisma.attendance.upsert({
-        where: {
-          userId_date: {
-            userId,
-            date: todayStart
+      if (attendance) {
+        attendance = await prisma.attendance.update({
+          where: { id: attendance.id },
+          data: {
+            checkIn: now,
+            status: 'PRESENT'
           }
-        },
-        update: {
-          checkIn: now,
-          status: 'PRESENT'
-        },
-        create: {
-          userId,
-          date: todayStart,
-          checkIn: now,
-          status: 'PRESENT'
-        }
-      });
+        });
+      } else {
+        attendance = await prisma.attendance.create({
+          data: {
+            id: `ATT-${userId}-${Date.now()}`,
+            userId,
+            date: todayStart,
+            checkIn: now,
+            status: 'PRESENT'
+          }
+        });
+      }
 
       // Log activity
       await logActivity(userId, 'CREATE', 'ATTENDANCE', attendance.id, { type: 'checkin', time: now });
@@ -143,17 +145,19 @@ const getTodayAttendance = async (req, res) => {
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-    const attendance = await prisma.attendance.findUnique({
+    const attendance = await prisma.attendance.findFirst({
       where: {
-        userId_date: {
-          userId,
-          date: todayStart
+        userId,
+        date: {
+          gte: todayStart,
+          lt: new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
         }
       }
     });
 
     success(res, attendance, 'Today\'s attendance retrieved successfully');
   } catch (err) {
+    console.error('Get today attendance error:', err);
     error(res, 'Failed to get today\'s attendance', 500);
   }
 };

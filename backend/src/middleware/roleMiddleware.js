@@ -11,5 +11,6 @@ const roleMiddleware = (allowedRoles) => {
     next();
   };
 };
-
+// Export default and named for compatibility
 module.exports = roleMiddleware;
+module.exports.checkRole = roleMiddleware;

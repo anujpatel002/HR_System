@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Edit, Trash2, Users } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { usersAPI } from '../../../lib/api';
 import { userRequestAPI } from '../../../lib/userRequestAPI';
 import { useAuth } from '../../../hooks/useAuth';
-import { ROLES } from '../../../utils/constants';
+import { ROLES, DEPARTMENTS } from '../../../utils/constants';
 import { canManageUsers, isAdmin, isHR } from '../../../utils/roleGuards';
 import Pagination from '../../../components/Pagination';
 
@@ -22,12 +22,17 @@ export default function AdminPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [selectedRole, setSelectedRole] = useState('');
   
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm();
+  
+  // Watch for department and role changes
+  const watchDepartment = watch('department');
+  const watchRole = watch('role');
 
   useEffect(() => {
     if (!currentUser) {
-      console.log('No user found, waiting for authentication...');
       return;
     }
     
@@ -36,47 +41,78 @@ export default function AdminPage() {
       return;
     }
     
-    console.log('Fetching users for role:', currentUser.role);
-    console.log('API URL:', process.env.NEXT_PUBLIC_API_URL);
+    // Fetch data only once when component mounts
     fetchUsers(1);
     if (isAdmin(currentUser.role)) {
       fetchPendingRequests();
     }
-  }, [currentUser]);
+  }, [currentUser?.id]); // Only re-run if user ID changes
 
-  const fetchUsers = async (page = 1) => {
+  const fetchUsers = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       const response = await usersAPI.getAll({ page, limit: 10 });
-      console.log('Users API response:', response);
       
-      // Handle different response structures
-      const userData = response.data?.data?.users || response.data?.data || response.data || [];
-      setUsers(Array.isArray(userData) ? userData : []);
+      // Consistent response structure: response.data.data contains the payload
+      const { users, pagination } = response.data.data;
+      setUsers(users || []);
       
-      if (response.data?.data?.pagination) {
-        setTotalPages(response.data.data.pagination.pages);
-        setTotalUsers(response.data.data.pagination.total);
+      if (pagination) {
+        setTotalPages(pagination.pages);
+        setTotalUsers(pagination.total);
         setCurrentPage(page);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
-      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
-      toast.error(`Failed to load users: ${errorMessage}`);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to load users';
+      toast.error(errorMessage);
       setUsers([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Empty deps - function doesn't depend on external state
 
-  const fetchPendingRequests = async () => {
+  const fetchPendingRequests = useCallback(async () => {
     try {
       const response = await userRequestAPI.getPending();
       setPendingRequests(response.data.data || []);
     } catch (error) {
       console.error('Error fetching requests:', error);
     }
-  };
+  }, []);
+
+  // Auto-assign manager when department and role change
+  useEffect(() => {
+    const autoAssignManager = async () => {
+      // Only auto-assign for employees when creating (not editing)
+      if (!editingUser && watchDepartment && watchRole === ROLES.EMPLOYEE) {
+        try {
+          // Fetch all users to find the department manager
+          const response = await usersAPI.getAll({ limit: 1000 });
+          const userData = response.data.data;
+          const usersList = Array.isArray(userData) ? userData : (userData.users || []);
+          
+          // Find manager in the selected department
+          const manager = usersList.find(u => 
+            u.department === watchDepartment && 
+            u.role === ROLES.MANAGER
+          );
+          
+          if (manager) {
+            setValue('managerId', manager.id);
+            toast.success(`Auto-assigned manager: ${manager.fullName}`);
+          } else {
+            setValue('managerId', '');
+            toast.info(`No manager found for ${watchDepartment} department`);
+          }
+        } catch (error) {
+          console.error('Error fetching managers:', error);
+        }
+      }
+    };
+
+    autoAssignManager();
+  }, [watchDepartment, watchRole, editingUser, setValue]);
 
   const onSubmit = async (data) => {
     try {
@@ -318,14 +354,19 @@ export default function AdminPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Department
                 </label>
-                <input
+                <select
                   {...register('department', {
                     required: !editingUser ? 'Department is required' : false
                   })}
-                  type="text"
                   className="input-field"
-                  placeholder="Enter department"
-                />
+                >
+                  <option value="">Select Department</option>
+                  {Object.entries(DEPARTMENTS).map(([key, value]) => (
+                    <option key={key} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </select>
                 {errors.department && (
                   <p className="mt-1 text-sm text-red-600">{errors.department.message}</p>
                 )}
@@ -366,29 +407,11 @@ export default function AdminPage() {
                 )}
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Account Number
-                </label>
-                <input
-                  {...register('accountNumber')}
-                  type="text"
-                  className="input-field"
-                  placeholder="Enter account number"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  IFSC Code
-                </label>
-                <input
-                  {...register('ifscCode')}
-                  type="text"
-                  className="input-field"
-                  placeholder="Enter IFSC code"
-                />
-              </div>
+              {/* Hidden field for managerId - auto-populated for employees */}
+              <input
+                {...register('managerId')}
+                type="hidden"
+              />
             </div>
             
             <div className="flex space-x-3">

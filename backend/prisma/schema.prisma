@@ -16,6 +16,9 @@ model activity_logs {
   details    Json?
   createdAt  DateTime     @default(now())
   users      users        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model attendance {
@@ -29,6 +32,9 @@ model attendance {
   users      users            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+  @@index([status])
 }
 
 model employees {
@@ -66,6 +72,10 @@ model leaves {
   status    LeaveStatus @default(PENDING)
   createdAt DateTime    @default(now())
   users     users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model payrolls {
@@ -83,6 +93,8 @@ model payrolls {
   users       users    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, month, year])
+  @@index([userId])
+  @@index([year, month])
 }
 
 model user_requests {
@@ -96,6 +108,10 @@ model user_requests {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime
   users        users         @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([requesterId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model user_sessions {
@@ -109,6 +125,10 @@ model user_sessions {
   userAgent        String?
   lastActivity     DateTime  @default(now())
   users            users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isActive])
+  @@index([loginTime])
 }
 
 model users {
@@ -117,7 +137,7 @@ model users {
   name          String
   password      String
   role          Role            @default(EMPLOYEE)
-  department    Department?
+  department    String?
   designation   String?
   basicSalary   Float?
   createdAt     DateTime        @default(now())
@@ -147,6 +167,10 @@ model users {
   payrolls      payrolls[]
   user_requests user_requests[]
   user_sessions user_sessions[]
+
+  @@index([role])
+  @@index([department])
+  @@index([createdAt])
 }
 
 model work_settings {

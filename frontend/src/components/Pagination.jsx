@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { memo } from 'react';
 
-export default function Pagination({ currentPage, totalPages, onPageChange }) {
+function Pagination({ currentPage, totalPages, onPageChange }) {
   const pages = [];
   const maxVisiblePages = 5;
   
@@ -79,3 +80,5 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
     </div>
   );
 }
+
+export default memo(Pagination);

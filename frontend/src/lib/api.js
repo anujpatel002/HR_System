@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+// Use Next.js proxy instead of direct backend URL
+// This avoids CORS issues and keeps backend URL hidden
+const API_URL = '/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -13,10 +15,8 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // Token is automatically sent via httpOnly cookie with withCredentials: true
+    // No need to manually add Authorization header
     return config;
   },
   (error) => Promise.reject(error)
@@ -27,7 +27,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
+      // Token is in httpOnly cookie, will be cleared by backend on logout
       if (error.response?.data?.error?.includes('terminated')) {
         alert('Your session has been terminated by an administrator.');
       }
@@ -75,6 +75,11 @@ export const payrollAPI = {
   getByUser: (userId, params) => api.get(`/payroll/${userId}`, { params }),
   getAll: (params) => api.get('/payroll/all', { params }),
   getStats: () => api.get('/payroll/stats'),
+};
+
+// Analytics API
+export const analyticsAPI = {
+  getAnalytics: () => api.get('/analytics'),
 };
 
 export default api;

@@ -14,7 +14,7 @@ const payrollRoutes = require('./routes/payrollRoutes');
 const userRequestRoutes = require('./routes/userRequestRoutes');
 const activityRoutes = require('./routes/activityRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
-
+const analyticsRoutes = require('./routes/analyticsRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 
 const app = express();
@@ -48,7 +48,7 @@ app.use('/api/payroll', payrollRoutes);
 app.use('/api/user-requests', userRequestRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/sessions', sessionRoutes);
-
+app.use('/api/analytics', analyticsRoutes);
 app.use('/api/settings', settingsRoutes);
 
 // 404 handler
@@ -57,9 +57,7 @@ app.use('*', (req, res) => {
 });
 
 // Global error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
-});
+const errorHandler = require('./middleware/errorHandler');
+app.use(errorHandler);
 
 module.exports = app;

@@ -30,9 +30,15 @@ export default function HRDashboard() {
         leaveAPI.getAll()
       ]);
 
-      const leaves = leavesRes.data.data;
+      // Handle response structure properly
+      const userData = usersRes.data.data;
+      const usersList = Array.isArray(userData) ? userData : (userData.users || []);
+      
+      const leaveData = leavesRes.data.data;
+      const leaves = Array.isArray(leaveData) ? leaveData : (leaveData.leaves || []);
+      
       setStats({
-        totalEmployees: usersRes.data.data.filter(u => u.role === 'EMPLOYEE').length,
+        totalEmployees: usersList.filter(u => u.role === 'EMPLOYEE').length,
         pendingLeaves: leaves.filter(l => l.status === 'PENDING').length,
         approvedLeaves: leaves.filter(l => l.status === 'APPROVED').length,
         presentToday: 0

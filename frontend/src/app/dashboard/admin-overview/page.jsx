@@ -27,10 +27,19 @@ export default function AdminOverviewPage() {
         api.get('/sessions/active')
       ]);
       
-      setUsers(usersRes.data.data || []);
-      setSessions(sessionsRes.data.data || []);
+      // Handle response structure: data.data.users (with pagination) or data.data (direct array)
+      const userData = usersRes.data.data;
+      const usersList = Array.isArray(userData) ? userData : (userData.users || []);
+      
+      const sessionData = sessionsRes.data.data;
+      const sessionsList = Array.isArray(sessionData) ? sessionData : (sessionData.sessions || []);
+      
+      setUsers(usersList);
+      setSessions(sessionsList);
     } catch (error) {
       console.error('Error fetching data:', error);
+      setUsers([]); // Ensure users is always an array
+      setSessions([]); // Ensure sessions is always an array
     } finally {
       setLoading(false);
     }

@@ -13,7 +13,8 @@ const registerSchema = Joi.object({
   role: Joi.string().valid('ADMIN', 'EMPLOYEE', 'HR_OFFICER', 'PAYROLL_OFFICER', 'MANAGER').default('EMPLOYEE'),
   department: Joi.string().optional(),
   designation: Joi.string().optional(),
-  basicSalary: Joi.number().positive().optional()
+  basicSalary: Joi.number().positive().optional(),
+  managerId: Joi.string().optional()
 });
 
 const loginSchema = Joi.object({
@@ -38,9 +39,12 @@ const register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(value.password, 12);
     
+    // Extract employee-specific fields
+    const { managerId, ...userData } = value;
+    
     const user = await prisma.users.create({
       data: {
-        ...value,
+        ...userData,
         password: hashedPassword
       },
       select: {
@@ -52,6 +56,18 @@ const register = async (req, res) => {
         designation: true
       }
     });
+
+    // Create employee record with manager relationship if managerId provided
+    if (managerId) {
+      await prisma.employees.create({
+        data: {
+          id: `EMP-${user.id.substring(0, 8)}`,
+          userId: user.id,
+          manager: managerId,
+          updatedAt: new Date()
+        }
+      });
+    }
 
     success(res, user, 'User registered successfully', 201);
   } catch (err) {
@@ -90,8 +106,7 @@ const login = async (req, res) => {
         role: user.role,
         department: user.department,
         designation: user.designation
-      },
-      token
+      }
     }, 'Login successful');
   } catch (err) {
     console.error('Login error:', err);

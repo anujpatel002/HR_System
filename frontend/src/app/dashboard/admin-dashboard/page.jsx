@@ -32,10 +32,17 @@ export default function AdminDashboard() {
         leaveAPI.getAll({ status: 'PENDING' })
       ]);
 
+      // Handle response structure properly
+      const userData = usersRes.data.data;
+      const usersList = Array.isArray(userData) ? userData : (userData.users || []);
+      
+      const leaveData = leavesRes.data.data;
+      const leavesList = Array.isArray(leaveData) ? leaveData : (leaveData.leaves || []);
+
       setStats({
-        totalEmployees: usersRes.data.data.filter(u => u.role === 'EMPLOYEE').length,
+        totalEmployees: usersList.filter(u => u.role === 'EMPLOYEE').length,
         presentToday: 0,
-        pendingLeaves: leavesRes.data.data.length,
+        pendingLeaves: leavesList.length,
         totalPayroll: payrollRes.data.data.totalNet || 0
       });
 

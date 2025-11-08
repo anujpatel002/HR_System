@@ -32,8 +32,9 @@ export default function EmployeeLeavePage() {
     try {
       setLoading(true);
       const response = await leaveAPI.getByUser(user.id);
+      // Consistent response structure: response.data.data contains the payload
       const data = response.data.data;
-      setLeaves(Array.isArray(data) ? data : data.leaves || []);
+      setLeaves(data || []);
     } catch (error) {
       console.error('Error fetching leaves:', error);
       toast.error('Failed to load leave history');

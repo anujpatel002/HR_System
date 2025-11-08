@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config/env');
 const prisma = require('../config/db');
 
-const authMiddleware = async (req, res, next) => {
+const verifyToken = async (req, res, next) => {
   try {
     const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
     
@@ -46,4 +46,6 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-module.exports = authMiddleware;
+// Export as named and default for compatibility
+module.exports = verifyToken;
+module.exports.verifyToken = verifyToken;

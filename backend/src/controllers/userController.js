@@ -5,6 +5,7 @@ const { success, error } = require('../utils/responseHandler');
 const { generateEmployeeId } = require('../utils/employeeIdGenerator');
 const { sendEmployeeCredentials } = require('../utils/emailService');
 const { logActivity } = require('../utils/activityLogger');
+const { cacheManager } = require('../middleware/cacheMiddleware');
 
 const createUserSchema = Joi.object({
   name: Joi.string().min(2).required(),
@@ -33,44 +34,66 @@ const updateUserSchema = Joi.object({
   panNo: Joi.string().optional(),
   uanNo: Joi.string().optional(),
   phone: Joi.string().optional(),
-  address: Joi.string().optional()
+  mobile: Joi.string().optional(),
+  address: Joi.string().optional(),
+  maritalStatus: Joi.string().optional(),
+  nationality: Joi.string().optional(),
+  company: Joi.string().optional(),
+  manager: Joi.string().optional(),
+  location: Joi.string().optional(),
+  empCode: Joi.string().optional()
 });
 
 const getAllUsers = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
+    const userRole = req.user.role;
+
+    // Define what fields each role can see
+    const selectFields = {
+      id: true,
+      employeeId: true,
+      name: true,
+      email: true,
+      department: true,
+      designation: true,
+      createdAt: true
+    };
+
+    // Only ADMIN and HR_OFFICER can see sensitive data
+    if (userRole === 'ADMIN' || userRole === 'HR_OFFICER') {
+      selectFields.role = true;
+      selectFields.basicSalary = true;
+      selectFields.bankName = true;
+      selectFields.accountNumber = true;
+      selectFields.ifscCode = true;
+      selectFields.panNo = true;
+      selectFields.uanNo = true;
+    }
+
+    // Employees can only see their own data
+    const whereClause = userRole === 'EMPLOYEE' ? { id: req.user.id } : {};
 
     const [users, total] = await Promise.all([
       prisma.users.findMany({
-        select: {
-          id: true,
-          employeeId: true,
-          name: true,
-          email: true,
-          role: true,
-          department: true,
-          designation: true,
-          basicSalary: true,
-          bankName: true,
-          accountNumber: true,
-          ifscCode: true,
-          panNo: true,
-          uanNo: true,
-          createdAt: true
-        },
+        where: whereClause,
+        select: selectFields,
         orderBy: { createdAt: 'desc' },
         skip: parseInt(skip),
         take: parseInt(limit)
       }),
-      prisma.users.count()
+      prisma.users.count(userRole === 'EMPLOYEE' ? { where: whereClause } : {})
     ]);
 
-    // Add bank details status to each user
-    const usersWithStatus = users.map(user => ({
-      ...user,
-      bankDetailsStatus: (user.bankName && user.accountNumber && user.ifscCode) ? 'Found' : 'Not Found'
-    }));
+    // Add bank details status to each user (only for ADMIN/HR)
+    const usersWithStatus = users.map(user => {
+      const userData = { ...user };
+      if (userRole === 'ADMIN' || userRole === 'HR_OFFICER') {
+        userData.bankDetailsStatus = (user.bankName && user.accountNumber && user.ifscCode) ? 'Found' : 'Not Found';
+      }
+      return userData;
+    });
 
     success(res, {
       users: usersWithStatus,
@@ -141,31 +164,41 @@ const updateUser = async (req, res) => {
       return error(res, 'You can only update your own profile', 403);
     }
 
+    // Validate request body using Joi schema
+    const { error: validationError, value } = updateUserSchema.validate(req.body, { 
+      abortEarly: false,
+      stripUnknown: true 
+    });
+    
+    if (validationError) {
+      return error(res, validationError.details.map(d => d.message).join(', '), 400);
+    }
+
     // Check if user exists first
     const existingUser = await prisma.users.findUnique({ where: { id } });
     if (!existingUser) {
       return error(res, 'User not found', 404);
     }
 
-    // Update all profile fields
+    // Update all profile fields from validated data
     const updateData = {};
-    if (req.body.name !== undefined && req.body.name !== null) updateData.name = req.body.name;
-    if (req.body.department !== undefined && req.body.department !== null) updateData.department = req.body.department;
-    if (req.body.designation !== undefined && req.body.designation !== null) updateData.designation = req.body.designation;
-    if (req.body.phone !== undefined && req.body.phone !== null) updateData.mobile = req.body.phone;
-    if (req.body.mobile !== undefined && req.body.mobile !== null) updateData.mobile = req.body.mobile;
-    if (req.body.address !== undefined && req.body.address !== null) updateData.address = req.body.address;
-    if (req.body.bankName !== undefined && req.body.bankName !== null) updateData.bankName = req.body.bankName;
-    if (req.body.accountNumber !== undefined && req.body.accountNumber !== null) updateData.accountNumber = req.body.accountNumber;
-    if (req.body.ifscCode !== undefined && req.body.ifscCode !== null) updateData.ifscCode = req.body.ifscCode;
-    if (req.body.panNo !== undefined && req.body.panNo !== null) updateData.panNo = req.body.panNo;
-    if (req.body.uanNo !== undefined && req.body.uanNo !== null) updateData.uanNo = req.body.uanNo;
-    if (req.body.maritalStatus !== undefined && req.body.maritalStatus !== null) updateData.maritalStatus = req.body.maritalStatus;
-    if (req.body.nationality !== undefined && req.body.nationality !== null) updateData.nationality = req.body.nationality;
-    if (req.body.company !== undefined && req.body.company !== null) updateData.company = req.body.company;
-    if (req.body.manager !== undefined && req.body.manager !== null) updateData.manager = req.body.manager;
-    if (req.body.location !== undefined && req.body.location !== null) updateData.location = req.body.location;
-    if (req.body.empCode !== undefined && req.body.empCode !== null) updateData.empCode = req.body.empCode;
+    if (value.name !== undefined && value.name !== null) updateData.name = value.name;
+    if (value.department !== undefined && value.department !== null) updateData.department = value.department;
+    if (value.designation !== undefined && value.designation !== null) updateData.designation = value.designation;
+    if (value.phone !== undefined && value.phone !== null) updateData.mobile = value.phone;
+    if (value.mobile !== undefined && value.mobile !== null) updateData.mobile = value.mobile;
+    if (value.address !== undefined && value.address !== null) updateData.address = value.address;
+    if (value.bankName !== undefined && value.bankName !== null) updateData.bankName = value.bankName;
+    if (value.accountNumber !== undefined && value.accountNumber !== null) updateData.accountNumber = value.accountNumber;
+    if (value.ifscCode !== undefined && value.ifscCode !== null) updateData.ifscCode = value.ifscCode;
+    if (value.panNo !== undefined && value.panNo !== null) updateData.panNo = value.panNo;
+    if (value.uanNo !== undefined && value.uanNo !== null) updateData.uanNo = value.uanNo;
+    if (value.maritalStatus !== undefined && value.maritalStatus !== null) updateData.maritalStatus = value.maritalStatus;
+    if (value.nationality !== undefined && value.nationality !== null) updateData.nationality = value.nationality;
+    if (value.company !== undefined && value.company !== null) updateData.company = value.company;
+    if (value.manager !== undefined && value.manager !== null) updateData.manager = value.manager;
+    if (value.location !== undefined && value.location !== null) updateData.location = value.location;
+    if (value.empCode !== undefined && value.empCode !== null) updateData.empCode = value.empCode;
     
     console.log('Update data:', updateData);
 
@@ -175,8 +208,8 @@ const updateUser = async (req, res) => {
     }
 
     // Check manager constraint if designation is being updated to Manager
-    if (req.body.designation === 'Manager' && (req.body.department || existingUser.department)) {
-      const department = req.body.department || existingUser.department;
+    if (value.designation === 'Manager' && (value.department || existingUser.department)) {
+      const department = value.department || existingUser.department;
       const existingManager = await prisma.users.findFirst({
         where: {
           department: department,
@@ -221,6 +254,9 @@ const updateUser = async (req, res) => {
     
     console.log('Updated user:', updatedUser);
     
+    // Clear cache after update
+    cacheManager.invalidatePattern('/api/users');
+    
     // Map mobile to phone for frontend compatibility
     const responseUser = {
       ...updatedUser,
@@ -249,6 +285,9 @@ const deleteUser = async (req, res) => {
     }
 
     await prisma.users.delete({ where: { id } });
+    
+    // Clear cache after delete
+    cacheManager.invalidatePattern('/api/users');
     
     // Log activity
     await logActivity(req.user.id, 'DELETE', 'USER', id, { name: user.name, email: user.email });
@@ -332,6 +371,9 @@ const createUser = async (req, res) => {
 
     // Send credentials via email
     await sendEmployeeCredentials(value.email, value.name, employeeId, defaultPassword);
+
+    // Clear cache after create
+    cacheManager.invalidatePattern('/api/users');
 
     // Log activity
     await logActivity(req.user.id, 'CREATE', 'USER', newUser.id, { name: newUser.name, email: newUser.email });

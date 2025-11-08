@@ -7,7 +7,8 @@ export const loginUser = createAsyncThunk(
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await authAPI.login(credentials);
-      localStorage.setItem('token', response.data.data.token);
+      // Token is now stored in httpOnly cookie by backend
+      // No need to store in localStorage
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Login failed');
@@ -32,9 +33,9 @@ export const logoutUser = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       await authAPI.logout();
-      localStorage.removeItem('token');
+      // Token is cleared by backend via httpOnly cookie
     } catch (error) {
-      localStorage.removeItem('token');
+      // Token is cleared by backend via httpOnly cookie
       return rejectWithValue(error.response?.data?.message || 'Logout failed');
     }
   }

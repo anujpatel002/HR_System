@@ -29,10 +29,12 @@ export default function PayrollDashboard() {
       console.log('Fetching dashboard data...');
       
       const usersRes = await usersAPI.getAll();
-      const users = usersRes.data.data || [];
+      const userData = usersRes.data.data;
+      const users = Array.isArray(userData) ? userData : (userData.users || []);
       
       const allPayrollsRes = await payrollAPI.getAll();
-      const payrolls = allPayrollsRes.data.data || [];
+      const payrollData = allPayrollsRes.data.data;
+      const payrolls = Array.isArray(payrollData) ? payrollData : (payrollData.payrolls || []);
 
       const totalEmployees = users.filter(u => u.role === 'EMPLOYEE').length;
       const totalNet = payrolls.reduce((sum, p) => sum + (p.netPay || 0), 0);

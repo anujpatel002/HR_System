@@ -1,17 +1,19 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { getProfile, setCredentials } from '../store/authSlice';
 
 export const useAuth = () => {
   const dispatch = useDispatch();
   const { user, isAuthenticated, isLoading, error } = useSelector((state) => state.auth);
+  const hasCheckedAuth = useRef(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token && !isAuthenticated) {
+    // Only check once per session to avoid repeated API calls
+    if (!hasCheckedAuth.current && !isAuthenticated && !isLoading) {
+      hasCheckedAuth.current = true;
       dispatch(getProfile());
     }
-  }, [dispatch, isAuthenticated]);
+  }, [dispatch, isAuthenticated, isLoading]);
 
   return {
     user,

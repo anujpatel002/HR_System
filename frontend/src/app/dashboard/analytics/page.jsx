@@ -6,48 +6,61 @@ import { TrendingUp, Users, Calendar, DollarSign } from 'lucide-react';
 import StatsCard from '../../../components/StatsCard';
 import { useAuth } from '../../../hooks/useAuth';
 import { canViewAllData } from '../../../utils/roleGuards';
+import { analyticsAPI } from '../../../lib/api';
+import toast from 'react-hot-toast';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
 export default function AnalyticsPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  
-  // Sample data - in real app, fetch from API
+  const [keyMetrics, setKeyMetrics] = useState({
+    totalEmployees: 0,
+    avgAttendance: 0,
+    pendingLeaves: 0,
+    monthlyPayroll: 0
+  });
   const [analyticsData, setAnalyticsData] = useState({
-    monthlyPayroll: [
-      { month: 'Jan', amount: 450000, employees: 45 },
-      { month: 'Feb', amount: 480000, employees: 48 },
-      { month: 'Mar', amount: 520000, employees: 52 },
-      { month: 'Apr', amount: 510000, employees: 51 },
-      { month: 'May', amount: 530000, employees: 53 },
-      { month: 'Jun', amount: 550000, employees: 55 },
-    ],
-    departmentDistribution: [
-      { name: 'Engineering', value: 40, color: '#3b82f6' },
-      { name: 'Marketing', value: 25, color: '#10b981' },
-      { name: 'Sales', value: 20, color: '#f59e0b' },
-      { name: 'HR', value: 10, color: '#ef4444' },
-      { name: 'Finance', value: 5, color: '#8b5cf6' },
-    ],
-    attendanceTrend: [
-      { date: 'Week 1', present: 85, absent: 15 },
-      { date: 'Week 2', present: 88, absent: 12 },
-      { date: 'Week 3', present: 82, absent: 18 },
-      { date: 'Week 4', present: 90, absent: 10 },
-    ],
-    leaveStats: [
-      { type: 'Sick', count: 12 },
-      { type: 'Casual', count: 18 },
-      { type: 'Annual', count: 25 },
-      { type: 'Maternity', count: 3 },
-    ]
+    monthlyPayroll: [],
+    departmentDistribution: [],
+    attendanceTrend: [],
+    leaveStats: []
   });
 
   useEffect(() => {
-    // Simulate loading
-    setTimeout(() => setLoading(false), 1000);
-  }, []);
+    if (user && canViewAllData(user?.role)) {
+      fetchAnalyticsData();
+    }
+  }, [user]);
+
+  const fetchAnalyticsData = async () => {
+    try {
+      setLoading(true);
+      const response = await analyticsAPI.getAnalytics();
+      const data = response.data.data;
+      
+      // Set key metrics
+      setKeyMetrics(data.keyMetrics);
+      
+      // Add colors to department distribution
+      const departmentWithColors = data.departmentDistribution.map((dept, index) => ({
+        ...dept,
+        color: COLORS[index % COLORS.length]
+      }));
+      
+      setAnalyticsData({
+        monthlyPayroll: data.monthlyPayroll,
+        departmentDistribution: departmentWithColors,
+        attendanceTrend: data.attendanceTrend,
+        leaveStats: data.leaveStats
+      });
+    } catch (err) {
+      console.error('Error fetching analytics:', err);
+      toast.error('Failed to load analytics data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!canViewAllData(user?.role)) {
     return (
@@ -77,25 +90,25 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Total Employees"
-          value="55"
+          value={keyMetrics.totalEmployees.toString()}
           icon={Users}
           color="blue"
         />
         <StatsCard
           title="Avg Attendance"
-          value="86%"
+          value={`${keyMetrics.avgAttendance}%`}
           icon={TrendingUp}
           color="green"
         />
         <StatsCard
           title="Pending Leaves"
-          value="8"
+          value={keyMetrics.pendingLeaves.toString()}
           icon={Calendar}
           color="yellow"
         />
         <StatsCard
           title="Monthly Payroll"
-          value="₹5.5L"
+          value={`₹${(keyMetrics.monthlyPayroll / 100000).toFixed(1)}L`}
           icon={DollarSign}
           color="purple"
         />
@@ -199,40 +212,49 @@ export default function AnalyticsPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {analyticsData.monthlyPayroll.map((month, index) => {
-                const prevMonth = analyticsData.monthlyPayroll[index - 1];
-                const growth = prevMonth 
-                  ? ((month.amount - prevMonth.amount) / prevMonth.amount * 100).toFixed(1)
-                  : 0;
-                
-                return (
-                  <tr key={month.month}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {month.month} 2024
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {month.employees}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ₹{month.amount.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ₹{Math.round(month.amount / month.employees).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        growth > 0 
-                          ? 'bg-green-100 text-green-800'
-                          : growth < 0
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {growth > 0 ? '+' : ''}{growth}%
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+              {analyticsData.monthlyPayroll.length > 0 ? (
+                analyticsData.monthlyPayroll.map((month, index) => {
+                  const prevMonth = analyticsData.monthlyPayroll[index - 1];
+                  const growth = prevMonth 
+                    ? ((month.amount - prevMonth.amount) / prevMonth.amount * 100).toFixed(1)
+                    : 0;
+                  const avgSalary = month.employees > 0 ? Math.round(month.amount / month.employees) : 0;
+                  
+                  return (
+                    <tr key={`${month.month}-${month.year}`}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {month.month} {month.year}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {month.employees}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ₹{month.amount.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ₹{avgSalary.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          growth > 0 
+                            ? 'bg-green-100 text-green-800'
+                            : growth < 0
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {growth > 0 ? '+' : ''}{growth}%
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
+                    No payroll data available
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
