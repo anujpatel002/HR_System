@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
+const { generateEmployeeId } = require('../src/utils/employeeIdGenerator');
 
 const prisma = new PrismaClient();
 
@@ -18,7 +19,8 @@ async function main() {
       role: 'ADMIN',
       department: 'IT',
       designation: 'System Admin',
-      basicSalary: 100000
+      basicSalary: 100000,
+      employeeId: await generateEmployeeId('System Administrator')
     }
   });
 
@@ -34,7 +36,8 @@ async function main() {
       role: 'HR_OFFICER',
       department: 'Human Resources',
       designation: 'HR Manager',
-      basicSalary: 80000
+      basicSalary: 80000,
+      employeeId: await generateEmployeeId('HR Manager')
     }
   });
 
@@ -50,7 +53,8 @@ async function main() {
       role: 'PAYROLL_OFFICER',
       department: 'Finance',
       designation: 'Payroll Manager',
-      basicSalary: 75000
+      basicSalary: 75000,
+      employeeId: await generateEmployeeId('Payroll Manager')
     }
   });
 
@@ -88,7 +92,8 @@ async function main() {
       create: {
         ...emp,
         password: employeePassword,
-        role: 'EMPLOYEE'
+        role: 'EMPLOYEE',
+        employeeId: await generateEmployeeId(emp.name)
       }
     });
   }

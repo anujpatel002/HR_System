@@ -45,8 +45,8 @@ export default function AdminPage() {
         await usersAPI.update(editingUser.id, data);
         toast.success('User updated successfully!');
       } else {
-        toast.info('User registration should be done through the registration page');
-        return;
+        await usersAPI.create(data);
+        toast.success('User created successfully!');
       }
       
       setShowForm(false);
@@ -189,11 +189,16 @@ export default function AdminPage() {
                   Department
                 </label>
                 <input
-                  {...register('department')}
+                  {...register('department', {
+                    required: !editingUser ? 'Department is required' : false
+                  })}
                   type="text"
                   className="input-field"
                   placeholder="Enter department"
                 />
+                {errors.department && (
+                  <p className="mt-1 text-sm text-red-600">{errors.department.message}</p>
+                )}
               </div>
               
               <div>
@@ -201,11 +206,16 @@ export default function AdminPage() {
                   Designation
                 </label>
                 <input
-                  {...register('designation')}
+                  {...register('designation', {
+                    required: !editingUser ? 'Designation is required' : false
+                  })}
                   type="text"
                   className="input-field"
                   placeholder="Enter designation"
                 />
+                {errors.designation && (
+                  <p className="mt-1 text-sm text-red-600">{errors.designation.message}</p>
+                )}
               </div>
               
               <div>
@@ -214,6 +224,7 @@ export default function AdminPage() {
                 </label>
                 <input
                   {...register('basicSalary', {
+                    required: !editingUser ? 'Basic salary is required' : false,
                     min: { value: 0, message: 'Salary must be positive' }
                   })}
                   type="number"
@@ -255,6 +266,9 @@ export default function AdminPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Employee ID
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   User
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -277,6 +291,11 @@ export default function AdminPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {users.map((user) => (
                 <tr key={user.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {user.employeeId || '-'}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-medium text-gray-900">{user.name}</div>
