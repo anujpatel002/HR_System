@@ -5,54 +5,104 @@ import { Plus, Edit, Trash2, Users } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { usersAPI } from '../../../lib/api';
+import { userRequestAPI } from '../../../lib/userRequestAPI';
 import { useAuth } from '../../../hooks/useAuth';
 import { ROLES } from '../../../utils/constants';
-import { canManageUsers } from '../../../utils/roleGuards';
+import { canManageUsers, isAdmin, isHR } from '../../../utils/roleGuards';
 
 export default function AdminPage() {
-  const { user } = useAuth();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [showRequests, setShowRequests] = useState(false);
   
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
 
   useEffect(() => {
-    if (!canManageUsers(user?.role)) {
+    if (!currentUser) {
+      console.log('No user found, waiting for authentication...');
+      return;
+    }
+    
+    if (!canManageUsers(currentUser.role)) {
       toast.error('Access denied');
       return;
     }
+    
+    console.log('Fetching users for role:', currentUser.role);
+    console.log('API URL:', process.env.NEXT_PUBLIC_API_URL);
     fetchUsers();
-  }, []);
+    if (isAdmin(currentUser.role)) {
+      fetchPendingRequests();
+    }
+  }, [currentUser]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       const response = await usersAPI.getAll();
-      setUsers(response.data.data);
+      console.log('Users API response:', response);
+      
+      // Handle different response structures
+      const userData = response.data?.data || response.data || [];
+      setUsers(Array.isArray(userData) ? userData : []);
     } catch (error) {
       console.error('Error fetching users:', error);
-      toast.error('Failed to load users');
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error';
+      toast.error(`Failed to load users: ${errorMessage}`);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchPendingRequests = async () => {
+    try {
+      const response = await userRequestAPI.getPending();
+      setPendingRequests(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+    }
+  };
+
   const onSubmit = async (data) => {
     try {
-      if (editingUser) {
-        await usersAPI.update(editingUser.id, data);
-        toast.success('User updated successfully!');
+      if (isAdmin(currentUser.role)) {
+        // Admin can directly perform operations
+        if (editingUser) {
+          await usersAPI.update(editingUser.id, data);
+          toast.success('User updated successfully!');
+        } else {
+          const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+          });
+          if (!response.ok) throw new Error('Failed to create user');
+          toast.success('User created successfully!');
+        }
+        fetchUsers();
       } else {
-        await usersAPI.create(data);
-        toast.success('User created successfully!');
+        // HR needs to submit request for approval
+        const requestType = editingUser ? 'UPDATE_USER' : 'CREATE_USER';
+        await userRequestAPI.create({
+          type: requestType,
+          targetUserId: editingUser?.id,
+          data
+        });
+        toast.success('Request submitted for admin approval!');
       }
       
       setShowForm(false);
       setEditingUser(null);
       reset();
-      fetchUsers();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to save user');
     }
@@ -73,19 +123,64 @@ export default function AdminPage() {
     if (!confirm('Are you sure you want to delete this user?')) return;
     
     try {
-      await usersAPI.delete(userId);
-      toast.success('User deleted successfully!');
-      fetchUsers();
+      if (isAdmin(currentUser.role)) {
+        await usersAPI.delete(userId);
+        toast.success('User deleted successfully!');
+        fetchUsers();
+      } else {
+        await userRequestAPI.create({
+          type: 'DELETE_USER',
+          targetUserId: userId,
+          data: {}
+        });
+        toast.success('Delete request submitted for admin approval!');
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to delete user');
     }
   };
 
-  if (!canManageUsers(user?.role)) {
+  const handleApproveRequest = async (requestId) => {
+    try {
+      await userRequestAPI.approve(requestId, '');
+      toast.success('Request approved!');
+      fetchPendingRequests();
+      fetchUsers();
+    } catch (error) {
+      toast.error('Failed to approve request');
+    }
+  };
+
+  const handleRejectRequest = async (requestId) => {
+    try {
+      await userRequestAPI.reject(requestId, '');
+      toast.success('Request rejected!');
+      fetchPendingRequests();
+    } catch (error) {
+      toast.error('Failed to reject request');
+    }
+  };
+
+  if (!currentUser) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading...</h2>
+        <p className="text-gray-600">Please wait while we verify your authentication.</p>
+        <div className="mt-4 text-sm text-gray-500">
+          Token: {localStorage.getItem('token') ? 'Present' : 'Missing'}
+        </div>
+      </div>
+    );
+  }
+  
+  if (!canManageUsers(currentUser.role)) {
     return (
       <div className="text-center py-12">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
         <p className="text-gray-600">You don't have permission to access this page.</p>
+        <div className="mt-4 text-sm text-gray-500">
+          Current role: {currentUser.role}
+        </div>
       </div>
     );
   }
@@ -106,21 +201,34 @@ export default function AdminPage() {
           <p className="text-gray-600">Manage system users and their roles</p>
         </div>
         
-        <button
-          onClick={() => {
-            setEditingUser(null);
-            reset();
-            setShowForm(true);
-          }}
-          className="btn-primary flex items-center space-x-2"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Add User</span>
-        </button>
+        <div className="flex space-x-3">
+          {canManageUsers(currentUser?.role) && (
+            <button
+              onClick={() => {
+                setEditingUser(null);
+                reset();
+                setShowForm(true);
+              }}
+              className="btn-primary flex items-center space-x-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add User</span>
+            </button>
+          )}
+          {isAdmin(currentUser?.role) && pendingRequests.length > 0 && (
+            <button
+              onClick={() => setShowRequests(!showRequests)}
+              className="btn-secondary flex items-center space-x-2"
+            >
+              <Users className="h-4 w-4" />
+              <span>Pending Requests ({pendingRequests.length})</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* User Form */}
-      {showForm && (
+      {showForm && canManageUsers(currentUser?.role) && (
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             {editingUser ? 'Edit User' : 'Add New User'}
@@ -173,11 +281,17 @@ export default function AdminPage() {
                   className="input-field"
                 >
                   <option value="">Select role</option>
-                  {Object.entries(ROLES).map(([key, value]) => (
-                    <option key={key} value={value}>
-                      {value.replace('_', ' ')}
-                    </option>
-                  ))}
+                  {Object.entries(ROLES).map(([key, value]) => {
+                    // HR can only create EMPLOYEE users
+                    if (isHR(currentUser?.role) && value !== 'EMPLOYEE') {
+                      return null;
+                    }
+                    return (
+                      <option key={key} value={value}>
+                        {value.replace('_', ' ')}
+                      </option>
+                    );
+                  })}
                 </select>
                 {errors.role && (
                   <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
@@ -257,9 +371,46 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Pending Requests */}
+      {showRequests && isAdmin(currentUser?.role) && pendingRequests.length > 0 && (
+        <div className="card">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Pending HR Requests</h2>
+          <div className="space-y-4">
+            {pendingRequests.map((request) => (
+              <div key={request.id} className="border rounded-lg p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-medium">{request.type.replace('_', ' ')}</p>
+                    <p className="text-sm text-gray-600">Requested by: {request.requester.name}</p>
+                    <p className="text-xs text-gray-500">{new Date(request.createdAt).toLocaleString()}</p>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleApproveRequest(request.id)}
+                      className="px-3 py-1 bg-green-600 text-white rounded text-sm"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleRejectRequest(request.id)}
+                      className="px-3 py-1 bg-red-600 text-white rounded text-sm"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Users List */}
       <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">All Users</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">All Users</h2>
+
+        </div>
         
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -289,55 +440,89 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
-                <tr key={user.id}>
+              {users.map((tableUser) => (
+                <tr key={tableUser.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
-                      {user.employeeId || '-'}
+                      {tableUser.employeeId || '-'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
+                      <div className="text-sm font-medium text-gray-900">{tableUser.name}</div>
+                      <div className="text-sm text-gray-500">{tableUser.email}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      user.role === 'ADMIN' 
+                      tableUser.role === 'ADMIN' 
                         ? 'bg-red-100 text-red-800'
-                        : user.role === 'HR_OFFICER'
+                        : tableUser.role === 'HR_OFFICER'
                         ? 'bg-blue-100 text-blue-800'
-                        : user.role === 'PAYROLL_OFFICER'
+                        : tableUser.role === 'PAYROLL_OFFICER'
                         ? 'bg-purple-100 text-purple-800'
                         : 'bg-green-100 text-green-800'
                     }`}>
-                      {user.role.replace('_', ' ')}
+                      {tableUser.role.replace('_', ' ')}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {user.department || '-'}
+                    {tableUser.department || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {user.designation || '-'}
+                    {tableUser.designation || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {user.basicSalary ? `₹${user.basicSalary.toLocaleString()}` : '-'}
+                    {tableUser.basicSalary ? `₹${tableUser.basicSalary.toLocaleString()}` : '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleEdit(user)}
-                        className="text-primary-600 hover:text-primary-900"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(user.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {/* Admin: Direct edit/delete */}
+                      {isAdmin(currentUser?.role) && (
+                        <>
+                          <button
+                            onClick={() => handleEdit(tableUser)}
+                            className="text-primary-600 hover:text-primary-900"
+                            title="Edit User"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(tableUser.id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Delete User"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                      {/* HR: Request approval for edit/delete EMPLOYEES only */}
+                      {isHR(currentUser?.role) && tableUser.role === 'EMPLOYEE' && (
+                        <>
+                          <button
+                            onClick={() => handleEdit(tableUser)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Request Edit (Needs Approval)"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(tableUser.id)}
+                            className="text-orange-600 hover:text-orange-900"
+                            title="Request Delete (Needs Approval)"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                      {/* HR cannot manage non-employees */}
+                      {isHR(currentUser?.role) && tableUser.role !== 'EMPLOYEE' && (
+                        <span className="text-gray-400 text-xs">No Access</span>
+                      )}
+                      {/* Show view-only for other roles */}
+                      {currentUser && !canManageUsers(currentUser.role) && (
+                        <span className="text-gray-400 text-xs">View Only</span>
+                      )}
                     </div>
                   </td>
                 </tr>

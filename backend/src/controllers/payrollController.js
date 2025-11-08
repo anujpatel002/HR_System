@@ -2,6 +2,7 @@ const Joi = require('joi');
 const prisma = require('../config/db');
 const { success, error } = require('../utils/responseHandler');
 const { calculatePayroll, getWorkingDaysInMonth } = require('../utils/payrollUtils');
+const { logActivity } = require('../utils/activityLogger');
 
 const generatePayrollSchema = Joi.object({
   month: Joi.string().pattern(/^(0[1-9]|1[0-2])$/).required(),
@@ -98,6 +99,9 @@ const generatePayroll = async (req, res) => {
 
       payrollResults.push(payroll);
     }
+
+    // Log activity
+    await logActivity(req.user.id, 'CREATE', 'PAYROLL', null, { month, year, employeeCount: payrollResults.length });
 
     success(res, payrollResults, `Payroll generated for ${payrollResults.length} employees`, 201);
   } catch (err) {

@@ -1,20 +1,53 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
+import { useSessionTimeout } from '../../hooks/useSessionTimeout';
+import { attendanceAPI } from '../../lib/api';
 import Navbar from '../../components/Navbar';
 import Sidebar from '../../components/Sidebar';
+import CheckInModal from '../../components/CheckInModal';
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const [showCheckInModal, setShowCheckInModal] = useState(false);
+  useSessionTimeout(720); // 12 hours
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push('/auth/login');
     }
   }, [isAuthenticated, isLoading, router]);
+
+  useEffect(() => {
+    const checkFirstLoginToday = async () => {
+      if (!user || user.role === 'ADMIN') return;
+      
+      const lastCheckIn = localStorage.getItem('lastCheckInDate');
+      const today = new Date().toDateString();
+      
+      if (lastCheckIn !== today) {
+        try {
+          const response = await attendanceAPI.getToday();
+          if (!response.data.data?.checkIn) {
+            setShowCheckInModal(true);
+          }
+        } catch (error) {
+          setShowCheckInModal(true);
+        }
+      }
+    };
+
+    if (user && isAuthenticated) {
+      checkFirstLoginToday();
+    }
+  }, [user, isAuthenticated]);
+
+  const handleCheckIn = () => {
+    localStorage.setItem('lastCheckInDate', new Date().toDateString());
+  };
 
   if (isLoading) {
     return (
@@ -40,6 +73,11 @@ export default function DashboardLayout({ children }) {
           {children}
         </main>
       </div>
+      <CheckInModal 
+        isOpen={showCheckInModal}
+        onClose={() => setShowCheckInModal(false)}
+        onCheckIn={handleCheckIn}
+      />
     </div>
   );
 }

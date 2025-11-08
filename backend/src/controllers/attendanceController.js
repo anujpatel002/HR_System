@@ -1,6 +1,7 @@
 const Joi = require('joi');
 const prisma = require('../config/db');
 const { success, error } = require('../utils/responseHandler');
+const { logActivity } = require('../utils/activityLogger');
 
 const markAttendanceSchema = Joi.object({
   type: Joi.string().valid('checkin', 'checkout').required()
@@ -52,6 +53,9 @@ const markAttendance = async (req, res) => {
         }
       });
 
+      // Log activity
+      await logActivity(userId, 'CREATE', 'ATTENDANCE', attendance.id, { type: 'checkin', time: now });
+
       success(res, attendance, 'Checked in successfully');
     } else {
       if (!attendance || !attendance.checkIn) {
@@ -71,6 +75,9 @@ const markAttendance = async (req, res) => {
           totalHours: Math.round(totalHours * 100) / 100
         }
       });
+
+      // Log activity
+      await logActivity(userId, 'UPDATE', 'ATTENDANCE', attendance.id, { type: 'checkout', time: now, totalHours });
 
       success(res, attendance, 'Checked out successfully');
     }

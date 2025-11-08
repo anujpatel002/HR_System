@@ -4,6 +4,7 @@ const prisma = require('../config/db');
 const { success, error } = require('../utils/responseHandler');
 const { generateEmployeeId } = require('../utils/employeeIdGenerator');
 const { sendEmployeeCredentials } = require('../utils/emailService');
+const { logActivity } = require('../utils/activityLogger');
 
 const createUserSchema = Joi.object({
   name: Joi.string().min(2).required(),
@@ -109,6 +110,9 @@ const updateUser = async (req, res) => {
       }
     });
 
+    // Log activity
+    await logActivity(req.user.id, 'UPDATE', 'USER', id, { name: updatedUser.name, changes: value });
+
     success(res, updatedUser, 'User updated successfully');
   } catch (err) {
     error(res, 'Failed to update user', 500);
@@ -125,6 +129,10 @@ const deleteUser = async (req, res) => {
     }
 
     await prisma.user.delete({ where: { id } });
+    
+    // Log activity
+    await logActivity(req.user.id, 'DELETE', 'USER', id, { name: user.name, email: user.email });
+    
     success(res, null, 'User deleted successfully');
   } catch (err) {
     error(res, 'Failed to delete user', 500);
@@ -178,6 +186,9 @@ const createUser = async (req, res) => {
 
     // Send credentials via email
     await sendEmployeeCredentials(value.email, value.name, employeeId, defaultPassword);
+
+    // Log activity
+    await logActivity(req.user.id, 'CREATE', 'USER', newUser.id, { name: newUser.name, email: newUser.email });
 
     success(res, newUser, 'User created successfully and credentials sent via email');
   } catch (err) {

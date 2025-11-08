@@ -1,6 +1,7 @@
 const Joi = require('joi');
 const prisma = require('../config/db');
 const { success, error } = require('../utils/responseHandler');
+const { logActivity } = require('../utils/activityLogger');
 
 const applyLeaveSchema = Joi.object({
   type: Joi.string().valid('SICK', 'CASUAL', 'ANNUAL', 'MATERNITY', 'PATERNITY').required(),
@@ -47,6 +48,9 @@ const applyLeave = async (req, res) => {
         }
       }
     });
+
+    // Log activity
+    await logActivity(userId, 'CREATE', 'LEAVE', leave.id, { type: value.type, startDate: value.startDate, endDate: value.endDate });
 
     success(res, leave, 'Leave application submitted successfully', 201);
   } catch (err) {
@@ -137,6 +141,9 @@ const updateLeaveStatus = async (req, res) => {
         }
       }
     });
+
+    // Log activity
+    await logActivity(req.user.id, 'UPDATE', 'LEAVE', id, { status, leaveType: leave.type, applicant: updatedLeave.user.name });
 
     success(res, updatedLeave, `Leave ${status.toLowerCase()} successfully`);
   } catch (err) {

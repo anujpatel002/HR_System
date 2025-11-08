@@ -28,6 +28,9 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
+      if (error.response?.data?.error?.includes('terminated')) {
+        alert('Your session has been terminated by an administrator.');
+      }
       window.location.href = '/auth/login';
     }
     return Promise.reject(error);

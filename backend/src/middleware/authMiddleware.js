@@ -20,6 +20,21 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid token.' });
     }
 
+    // Check if user session was terminated by admin
+    if (global.blacklistedUsers && global.blacklistedUsers.has(user.id)) {
+      global.blacklistedUsers.delete(user.id); // Remove from blacklist after logout
+      return res.status(401).json({ error: 'Session terminated by administrator.' });
+    }
+
+    // Update last activity for active sessions
+    await prisma.userSession.updateMany({
+      where: { 
+        userId: user.id,
+        isActive: true
+      },
+      data: { lastActivity: new Date() }
+    });
+
     req.user = user;
     next();
   } catch (error) {

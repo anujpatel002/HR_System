@@ -4,6 +4,7 @@ const Joi = require('joi');
 const prisma = require('../config/db');
 const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config/env');
 const { success, error } = require('../utils/responseHandler');
+const { logActivity } = require('../utils/activityLogger');
 
 const registerSchema = Joi.object({
   name: Joi.string().min(2).required(),
@@ -81,6 +82,19 @@ const login = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
+    // Create session
+    await prisma.userSession.create({
+      data: {
+        userId: user.id,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        lastActivity: new Date()
+      }
+    });
+
+    // Log activity
+    await logActivity(user.id, 'LOGIN', 'AUTH', null, { email: user.email });
+
     success(res, {
       user: {
         id: user.id,
@@ -97,7 +111,24 @@ const login = async (req, res) => {
   }
 };
 
-const logout = (req, res) => {
+const logout = async (req, res) => {
+  // Log activity and terminate session if user is authenticated
+  if (req.user) {
+    await logActivity(req.user.id, 'LOGOUT', 'AUTH');
+    
+    // Terminate active sessions
+    await prisma.userSession.updateMany({
+      where: { 
+        userId: req.user.id,
+        isActive: true
+      },
+      data: { 
+        isActive: false,
+        logoutTime: new Date()
+      }
+    });
+  }
+  
   res.clearCookie('token');
   success(res, null, 'Logout successful');
 };

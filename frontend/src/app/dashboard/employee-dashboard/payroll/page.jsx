@@ -138,208 +138,129 @@ export default function EmployeePayrollPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Payslip List */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Payslip History</h2>
-            </div>
-            
-            {payslips.length === 0 ? (
-              <div className="p-8 text-center">
-                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No payslips found</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-200">
-                {payslips.map((payslip) => (
-                  <div
-                    key={payslip.id}
-                    onClick={() => setSelectedPayslip(payslip)}
-                    className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
-                      selectedPayslip?.id === payslip.id ? 'bg-blue-50 border-r-4 border-blue-500' : ''
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium text-gray-900">
-                          {getMonthYear(payslip.month, payslip.year)}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                          Net: {formatCurrency(payslip.netPay)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+      {/* Payroll Records Table */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">My Payslips</h2>
         </div>
-
-        {/* Payslip Details */}
-        <div className="lg:col-span-2">
-          {selectedPayslip ? (
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Payslip - {getMonthYear(selectedPayslip.month, selectedPayslip.year)}
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    Generated on {formatDate(selectedPayslip.createdAt)}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleDownloadPayslip(selectedPayslip)}
-                  className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download</span>
-                </button>
-              </div>
-
-              <div className="p-6">
-                {/* Employee Information */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Employee Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Employee Name</p>
-                      <p className="font-medium">{user.name}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Employee ID</p>
-                      <p className="font-medium">{user.id}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Department</p>
-                      <p className="font-medium">{user.department || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Pay Period</p>
-                      <p className="font-medium">{getMonthYear(selectedPayslip.month, selectedPayslip.year)}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Salary Breakdown */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Salary Breakdown</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Description
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Amount
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        <tr>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            Basic Salary
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                            {formatCurrency(selectedPayslip.basicSalary)}
-                          </td>
-                        </tr>
-                        <tr className="bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            Gross Salary
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                            {formatCurrency(selectedPayslip.gross)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Deductions */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Deductions</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Description
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Amount
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        <tr>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            Provident Fund (12%)
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right text-red-600">
-                            -{formatCurrency(selectedPayslip.pf)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            Professional Tax
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right text-red-600">
-                            -{formatCurrency(selectedPayslip.tax)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            Other Deductions
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right text-red-600">
-                            -{formatCurrency(0)}
-                          </td>
-                        </tr>
-                        <tr className="bg-gray-100">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            Total Deductions
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right text-red-600">
-                            -{formatCurrency(selectedPayslip.deductions)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Net Salary */}
-                <div className="bg-green-50 rounded-lg p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <DollarSign className="w-6 h-6 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-green-600">Net Salary</p>
-                        <p className="text-2xl font-bold text-green-900">
-                          {formatCurrency(selectedPayslip.netPay)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white rounded-lg shadow p-8 text-center">
+        
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Period
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Basic Salary
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Gross Pay
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Deductions
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Net Pay
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {payslips.map((payslip) => (
+                <tr key={payslip.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {getMonthYear(payslip.month, payslip.year)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrency(payslip.basicSalary)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrency(payslip.gross)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrency(payslip.deductions)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {formatCurrency(payslip.netPay)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button 
+                      onClick={() => handleDownloadPayslip(payslip)}
+                      className="text-blue-600 hover:text-blue-900 flex items-center space-x-1"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>Download</span>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          {payslips.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">Select a payslip to view details</p>
+              <p>No payslips found</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Latest Payslip Breakdown */}
+      {payslips.length > 0 && (
+        <div className="bg-white rounded-lg shadow mt-8">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Latest Payslip Breakdown</h2>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-medium text-gray-900 mb-3">Earnings</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Basic Salary</span>
+                    <span className="font-medium">{formatCurrency(payslips[0].basicSalary)}</span>
+                  </div>
+                  <div className="flex justify-between font-medium border-t pt-2">
+                    <span>Gross Pay</span>
+                    <span>{formatCurrency(payslips[0].gross)}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="font-medium text-gray-900 mb-3">Deductions</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">PF (12%)</span>
+                    <span className="font-medium">{formatCurrency(payslips[0].pf)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Professional Tax</span>
+                    <span className="font-medium">{formatCurrency(payslips[0].tax)}</span>
+                  </div>
+                  <div className="flex justify-between font-medium border-t pt-2">
+                    <span>Total Deductions</span>
+                    <span>{formatCurrency(payslips[0].deductions)}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="md:col-span-2 bg-green-50 p-4 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-semibold text-green-900">Net Pay</span>
+                  <span className="text-2xl font-bold text-green-900">
+                    {formatCurrency(payslips[0].netPay)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

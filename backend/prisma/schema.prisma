@@ -23,6 +23,9 @@ model User {
   attendance Attendance[]
   leaves     Leave[]
   payrolls   Payroll[]
+  requests   UserRequest[]
+  activities ActivityLog[]
+  sessions   UserSession[]
 
   @@map("users")
 }
@@ -76,6 +79,52 @@ model Payroll {
   @@map("payrolls")
 }
 
+model UserRequest {
+  id          String        @id @default(cuid())
+  requesterId String
+  type        RequestType
+  targetUserId String?
+  data        Json
+  status      RequestStatus @default(PENDING)
+  adminNote   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  requester User @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@map("user_requests")
+}
+
+model ActivityLog {
+  id          String       @id @default(cuid())
+  userId      String
+  action      ActivityType
+  targetType  String
+  targetId    String?
+  details     Json?
+  createdAt   DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("activity_logs")
+}
+
+model UserSession {
+  id            String    @id @default(cuid())
+  userId        String
+  isActive      Boolean   @default(true)
+  loginTime     DateTime  @default(now())
+  logoutTime    DateTime?
+  attendanceStatus String?
+  ipAddress     String?
+  userAgent     String?
+  lastActivity  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
 enum Role {
   ADMIN
   EMPLOYEE
@@ -101,4 +150,24 @@ enum LeaveStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum RequestType {
+  CREATE_USER
+  UPDATE_USER
+  DELETE_USER
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ActivityType {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
 }

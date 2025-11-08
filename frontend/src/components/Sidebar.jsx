@@ -9,7 +9,8 @@ import {
   Calendar, 
   DollarSign, 
   BarChart3,
-  Settings 
+  Settings,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { canManageUsers, canManagePayroll, canViewAllData } from '../utils/roleGuards';
@@ -32,6 +33,8 @@ const getNavigation = (userRole) => {
     { name: 'Leave', href: '/dashboard/leave', icon: Calendar, roles: ['all'] },
     { name: 'Payroll', href: '/dashboard/payroll', icon: DollarSign, roles: ['all'] },
     { name: 'Users', href: '/dashboard/admin', icon: Users, roles: ['admin', 'hr'] },
+    { name: 'Sessions', href: '/dashboard/sessions', icon: Users, roles: ['admin'] },
+    { name: 'Activities', href: '/dashboard/activities', icon: Activity, roles: ['admin'] },
     { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: ['admin', 'hr', 'payroll'] },
   ];
 };
@@ -46,8 +49,8 @@ export default function Sidebar() {
     if (user?.role === 'EMPLOYEE') return true;
     if (item.roles?.includes('all')) return true;
     
-    if (item.roles?.includes('admin') && canManageUsers(user?.role)) return true;
-    if (item.roles?.includes('hr') && canManageUsers(user?.role)) return true;
+    if (item.roles?.includes('admin') && user?.role === 'ADMIN') return true;
+    if (item.roles?.includes('hr') && user?.role === 'HR_OFFICER') return true;
     if (item.roles?.includes('payroll') && canManagePayroll(user?.role)) return true;
     
     return false;
