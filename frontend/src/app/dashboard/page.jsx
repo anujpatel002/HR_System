@@ -24,6 +24,9 @@ export default function DashboardPage() {
         case 'PAYROLL_OFFICER':
           router.push('/dashboard/payroll-dashboard');
           break;
+        case 'MANAGER':
+          router.push('/dashboard/admin-dashboard');
+          break;
         default:
           router.push('/dashboard/employee-dashboard');
       }

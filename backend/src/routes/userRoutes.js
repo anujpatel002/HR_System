@@ -6,7 +6,7 @@ const { cacheMiddleware } = require('../middleware/cacheMiddleware');
 
 const router = express.Router();
 
-router.get('/', authMiddleware, roleMiddleware(['ADMIN', 'HR_OFFICER', 'EMPLOYEE', 'MANAGER']), cacheMiddleware(30000), getAllUsers);
+router.get('/', authMiddleware, roleMiddleware(['ADMIN', 'HR_OFFICER', 'MANAGER']), cacheMiddleware(30000), getAllUsers);
 router.get('/:id', authMiddleware, cacheMiddleware(60000), getUserById);
 router.post('/', authMiddleware, roleMiddleware(['ADMIN']), createUser);
 router.put('/:id', authMiddleware, roleMiddleware(['ADMIN', 'HR_OFFICER', 'EMPLOYEE', 'MANAGER']), updateUser);

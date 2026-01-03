@@ -5,6 +5,7 @@ const prisma = require('../config/db');
 const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config/env');
 const { success, error } = require('../utils/responseHandler');
 const { logActivity } = require('../utils/activityLogger');
+const { generateEmployeeId } = require('../utils/employeeIdGenerator');
 
 const registerSchema = Joi.object({
   name: Joi.string().min(2).required(),
@@ -14,7 +15,7 @@ const registerSchema = Joi.object({
   department: Joi.string().optional(),
   designation: Joi.string().optional(),
   basicSalary: Joi.number().positive().optional(),
-  managerId: Joi.string().optional()
+  managerId: Joi.string().allow('', null).optional()
 });
 
 const loginSchema = Joi.object({
@@ -26,6 +27,7 @@ const register = async (req, res) => {
   try {
     const { error: validationError, value } = registerSchema.validate(req.body);
     if (validationError) {
+      console.error('Registration validation error:', validationError.details[0].message);
       return error(res, validationError.details[0].message, 400);
     }
 
@@ -39,13 +41,42 @@ const register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(value.password, 12);
     
+    // Generate unique employee ID
+    const employeeId = await generateEmployeeId(value.name);
+    
+    // Auto-assign department manager if department is provided
+    let assignedManager = value.managerId;
+    if (value.department && !assignedManager && value.role === 'EMPLOYEE') {
+      try {
+        const departmentManager = await prisma.users.findFirst({
+          where: {
+            department: value.department,
+            role: { in: ['MANAGER', 'HR_OFFICER', 'ADMIN'] }
+          },
+          orderBy: [
+            { role: 'asc' }, // ADMIN first, then HR_OFFICER, then MANAGER
+            { createdAt: 'asc' } // Oldest first if multiple
+          ]
+        });
+        
+        if (departmentManager) {
+          assignedManager = departmentManager.id;
+        }
+      } catch (managerError) {
+        console.error('Manager assignment error:', managerError);
+        // Continue without manager assignment
+      }
+    }
+    
     // Extract employee-specific fields
     const { managerId, ...userData } = value;
     
     const user = await prisma.users.create({
       data: {
         ...userData,
-        password: hashedPassword
+        password: hashedPassword,
+        employeeId,
+        manager: assignedManager
       },
       select: {
         id: true,
@@ -53,25 +84,31 @@ const register = async (req, res) => {
         email: true,
         role: true,
         department: true,
-        designation: true
+        designation: true,
+        employeeId: true,
+        manager: true
       }
     });
 
-    // Create employee record with manager relationship if managerId provided
-    if (managerId) {
-      await prisma.employees.create({
-        data: {
-          id: `EMP-${user.id.substring(0, 8)}`,
-          userId: user.id,
-          manager: managerId,
-          updatedAt: new Date()
-        }
-      });
+    // Create employee record with manager relationship (optional)
+    if (assignedManager) {
+      try {
+        await prisma.employees.create({
+          data: {
+            userId: user.id,
+            manager: assignedManager
+          }
+        });
+      } catch (employeeError) {
+        console.error('Employee record creation error:', employeeError);
+        // Continue without employee record
+      }
     }
 
     success(res, user, 'User registered successfully', 201);
   } catch (err) {
-    error(res, 'Registration failed', 500);
+    console.error('Registration error:', err);
+    error(res, `Registration failed: ${err.message}`, 500);
   }
 };
 

@@ -20,10 +20,14 @@ const getLeaveBalance = async (req, res) => {
 
     const currentYear = new Date().getFullYear();
     
-    // Get leave types
-    const leaveTypes = await prisma.leave_types.findMany({
-      where: { isActive: true }
-    });
+    // Default leave balances (since we don't have leave_types table)
+    const defaultBalances = {
+      SICK: 12,
+      CASUAL: 12,
+      ANNUAL: 21,
+      MATERNITY: 90,
+      PATERNITY: 15
+    };
 
     // Get used leaves for current year
     const usedLeaves = await prisma.leaves.groupBy({
@@ -39,18 +43,18 @@ const getLeaveBalance = async (req, res) => {
       _count: { id: true }
     });
 
-    const balance = leaveTypes.map(lt => {
-      const used = usedLeaves.find(ul => ul.type === lt.code)?._count?.id || 0;
+    const balance = Object.entries(defaultBalances).map(([type, total]) => {
+      const used = usedLeaves.find(ul => ul.type === type)?._count?.id || 0;
       return {
-        type: lt.name,
-        code: lt.code,
-        total: lt.defaultBalance,
+        type: type.toLowerCase(),
+        code: type,
+        total,
         used,
-        available: lt.defaultBalance - used
+        available: total - used
       };
     });
 
-    success(res, balance, 'Leave balance retrieved successfully');
+    success(res, { balance }, 'Leave balance retrieved successfully');
   } catch (err) {
     console.error('Get leave balance error:', err);
     error(res, 'Failed to get leave balance', 500);
@@ -95,6 +99,14 @@ const applyLeave = async (req, res) => {
     }
 
     const userId = req.user.id;
+    
+    // Validate dates are not in the past
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (new Date(value.startDate) < today) {
+      return error(res, 'Start date cannot be in the past', 400);
+    }
 
     // Check for overlapping leaves
     const overlappingLeave = await prisma.leaves.findFirst({

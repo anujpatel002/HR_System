@@ -100,7 +100,7 @@ export default function AdminPage() {
           
           if (manager) {
             setValue('managerId', manager.id);
-            toast.success(`Auto-assigned manager: ${manager.fullName}`);
+            toast.success(`Auto-assigned manager: ${manager.name}`);
           } else {
             setValue('managerId', '');
             toast.info(`No manager found for ${watchDepartment} department`);
@@ -406,6 +406,26 @@ export default function AdminPage() {
                   <p className="mt-1 text-sm text-red-600">{errors.basicSalary.message}</p>
                 )}
               </div>
+              
+              {!editingUser && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Password
+                  </label>
+                  <input
+                    {...register('password', {
+                      required: 'Password is required',
+                      minLength: { value: 6, message: 'Password must be at least 6 characters' }
+                    })}
+                    type="password"
+                    className="input-field"
+                    placeholder="Enter password"
+                  />
+                  {errors.password && (
+                    <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                  )}
+                </div>
+              )}
               
               {/* Hidden field for managerId - auto-populated for employees */}
               <input

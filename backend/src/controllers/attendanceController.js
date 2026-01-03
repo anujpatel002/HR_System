@@ -4,7 +4,7 @@ const { success, error } = require('../utils/responseHandler');
 const { logActivity } = require('../utils/activityLogger');
 
 const markAttendanceSchema = Joi.object({
-  type: Joi.string().valid('checkin', 'checkout').required()
+  type: Joi.string().valid('CHECK_IN', 'CHECK_OUT', 'checkin', 'checkout').required()
 });
 
 const markAttendance = async (req, res) => {
@@ -44,7 +44,7 @@ const markAttendance = async (req, res) => {
 
     const now = new Date();
 
-    if (value.type === 'checkin') {
+    if (value.type === 'CHECK_IN' || value.type === 'checkin') {
       if (attendance && attendance.checkIn) {
         return error(res, 'Already checked in today', 400);
       }
@@ -68,7 +68,7 @@ const markAttendance = async (req, res) => {
         });
       }
 
-      await logActivity(req.user.id, 'CREATE', 'ATTENDANCE', attendance.id, { type: 'checkin', time: now, forUser: userId });
+      await logActivity(req.user.id, 'CREATE', 'ATTENDANCE', attendance.id, { type: 'CHECK_IN', time: now, forUser: userId });
 
       success(res, attendance, 'Checked in successfully');
     } else {
@@ -90,7 +90,7 @@ const markAttendance = async (req, res) => {
         }
       });
 
-      await logActivity(req.user.id, 'UPDATE', 'ATTENDANCE', attendance.id, { type: 'checkout', time: now, totalHours, forUser: userId });
+      await logActivity(req.user.id, 'UPDATE', 'ATTENDANCE', attendance.id, { type: 'CHECK_OUT', time: now, totalHours, forUser: userId });
 
       success(res, attendance, 'Checked out successfully');
     }

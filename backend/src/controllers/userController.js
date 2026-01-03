@@ -14,11 +14,7 @@ const createUserSchema = Joi.object({
   designation: Joi.string().required(),
   basicSalary: Joi.number().positive().required(),
   role: Joi.string().valid('ADMIN', 'EMPLOYEE', 'HR_OFFICER', 'PAYROLL_OFFICER', 'MANAGER').default('EMPLOYEE'),
-  manager: Joi.string().when('role', {
-    is: 'EMPLOYEE',
-    then: Joi.required(),
-    otherwise: Joi.optional()
-  })
+  manager: Joi.string().optional() // Made optional since it will be auto-assigned
 });
 
 const updateUserSchema = Joi.object({
@@ -70,7 +66,16 @@ const getAllUsers = async (req, res) => {
       selectFields.uanNo = true;
     }
 
-    let whereClause = userRole === 'EMPLOYEE' ? { id: req.user.id } : {};
+    let whereClause = {};
+    
+    // Role-based filtering
+    if (userRole === 'EMPLOYEE') {
+      whereClause = { id: req.user.id };
+    } else if (userRole === 'MANAGER') {
+      // Managers can only see employees under their management
+      whereClause = { manager: req.user.id };
+    }
+    // ADMIN and HR_OFFICER can see all users (no additional filtering)
     
     if (search) {
       whereClause.OR = [
@@ -318,9 +323,12 @@ const deleteUser = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
+    console.log('Create user request:', req.body);
+    
     const { error: validationError, value } = createUserSchema.validate(req.body);
     
     if (validationError) {
+      console.error('Validation error:', validationError.details[0].message);
       return error(res, validationError.details[0].message, 400);
     }
 
@@ -343,16 +351,40 @@ const createUser = async (req, res) => {
       }
     }
 
+    // Auto-assign department manager if not provided
+    let assignedManager = value.manager;
+    if (value.department && !assignedManager && value.role === 'EMPLOYEE') {
+      try {
+        const departmentManager = await prisma.users.findFirst({
+          where: {
+            department: value.department,
+            role: { in: ['MANAGER', 'HR_OFFICER', 'ADMIN'] }
+          },
+          orderBy: [
+            { role: 'asc' }, // ADMIN first, then HR_OFFICER, then MANAGER
+            { createdAt: 'asc' } // Oldest first if multiple
+          ]
+        });
+        
+        if (departmentManager) {
+          assignedManager = departmentManager.id;
+          console.log('Auto-assigned manager:', departmentManager.name);
+        }
+      } catch (managerError) {
+        console.error('Manager assignment error:', managerError);
+      }
+    }
+
     // Validate manager assignment for employees
-    if (value.role === 'EMPLOYEE' && value.manager) {
+    if (value.role === 'EMPLOYEE' && assignedManager) {
       const managerExists = await prisma.users.findUnique({
-        where: { id: value.manager }
+        where: { id: assignedManager }
       });
       if (!managerExists) {
         return error(res, 'Invalid manager ID', 400);
       }
-      if (managerExists.role !== 'MANAGER' && managerExists.designation !== 'Manager') {
-        return error(res, 'Assigned manager must have MANAGER role or Manager designation', 400);
+      if (!['MANAGER', 'HR_OFFICER', 'ADMIN'].includes(managerExists.role) && managerExists.designation !== 'Manager') {
+        return error(res, 'Assigned manager must have appropriate role or Manager designation', 400);
       }
     }
 
@@ -367,12 +399,18 @@ const createUser = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(defaultPassword, 12);
 
-    // Create user
+    // Create user with auto-assigned manager
     const newUser = await prisma.users.create({
       data: {
-        ...value,
+        name: value.name,
+        email: value.email,
+        department: value.department,
+        designation: value.designation,
+        basicSalary: value.basicSalary,
+        role: value.role,
         employeeId,
-        password: hashedPassword
+        password: hashedPassword,
+        manager: assignedManager
       },
       select: {
         id: true,
@@ -383,23 +421,41 @@ const createUser = async (req, res) => {
         department: true,
         designation: true,
         basicSalary: true,
+        manager: true,
         createdAt: true
       }
     });
 
-    // Send credentials via email
-    await sendEmployeeCredentials(value.email, value.name, employeeId, defaultPassword);
+    // Send credentials via email (optional)
+    try {
+      await sendEmployeeCredentials(value.email, value.name, employeeId, defaultPassword);
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+      // Continue without email
+    }
 
     // Clear cache after create
-    cacheManager.invalidatePattern('/api/users');
+    try {
+      cacheManager.invalidatePattern('/api/users');
+    } catch (cacheError) {
+      console.error('Cache clear error:', cacheError);
+    }
 
     // Log activity
-    await logActivity(req.user.id, 'CREATE', 'USER', newUser.id, { name: newUser.name, email: newUser.email });
+    try {
+      await logActivity(req.user.id, 'CREATE', 'USER', newUser.id, { 
+        name: newUser.name, 
+        email: newUser.email,
+        assignedManager: assignedManager ? 'Auto-assigned' : 'None'
+      });
+    } catch (logError) {
+      console.error('Activity log error:', logError);
+    }
 
-    success(res, newUser, 'User created successfully and credentials sent via email');
+    success(res, newUser, 'User created successfully');
   } catch (err) {
     console.error('Create user error:', err);
-    error(res, 'Failed to create user', 500);
+    error(res, `Failed to create user: ${err.message}`, 500);
   }
 };
 
