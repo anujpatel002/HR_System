@@ -1,4 +1,4 @@
-# WorkZen - Smart HR Management System
+# DayFlow - Smart HR Management System
 
 A complete HR management system built with Next.js, Node.js, and MySQL.
 
@@ -87,22 +87,22 @@ npm run dev
 After running the seed script (`npm run seed` in backend), use these accounts:
 
 ### Admin Account
-- **Email**: admin@workzen.com
+- **Email**: admin@dayflow.com
 - **Password**: admin123
 - **Access**: Full system access, user management, all modules
 
 ### HR Officer Account
-- **Email**: hr@workzen.com
+- **Email**: hr@dayflow.com
 - **Password**: hr123
 - **Access**: User management, leave approvals, analytics
 
 ### Payroll Officer Account
-- **Email**: payroll@workzen.com
+- **Email**: payroll@dayflow.com
 - **Password**: payroll123
 - **Access**: Payroll generation, salary management, analytics
 
 ### Employee Account
-- **Email**: john.doe@workzen.com
+- **Email**: john.doe@dayflow.com
 - **Password**: employee123
 - **Access**: Personal attendance, leave applications, payslips
 

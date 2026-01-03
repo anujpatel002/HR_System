@@ -6,6 +6,7 @@ const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config/env');
 const { success, error } = require('../utils/responseHandler');
 const { logActivity } = require('../utils/activityLogger');
 const { generateEmployeeId } = require('../utils/employeeIdGenerator');
+const { generateOTP, sendOTP, storeOTP, verifyOTP } = require('../utils/otpService');
 
 const registerSchema = Joi.object({
   name: Joi.string().min(2).required(),
@@ -15,7 +16,8 @@ const registerSchema = Joi.object({
   department: Joi.string().optional(),
   designation: Joi.string().optional(),
   basicSalary: Joi.number().positive().optional(),
-  managerId: Joi.string().allow('', null).optional()
+  managerId: Joi.string().allow('', null).optional(),
+  company: Joi.string().optional()
 });
 
 const loginSchema = Joi.object({
@@ -40,44 +42,50 @@ const register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(value.password, 12);
-    
-    // Generate unique employee ID
     const employeeId = await generateEmployeeId(value.name);
     
-    // Auto-assign department manager if department is provided
-    let assignedManager = value.managerId;
-    if (value.department && !assignedManager && value.role === 'EMPLOYEE') {
-      try {
-        const departmentManager = await prisma.users.findFirst({
-          where: {
-            department: value.department,
-            role: { in: ['MANAGER', 'HR_OFFICER', 'ADMIN'] }
-          },
-          orderBy: [
-            { role: 'asc' }, // ADMIN first, then HR_OFFICER, then MANAGER
-            { createdAt: 'asc' } // Oldest first if multiple
-          ]
-        });
-        
-        if (departmentManager) {
-          assignedManager = departmentManager.id;
-        }
-      } catch (managerError) {
-        console.error('Manager assignment error:', managerError);
-        // Continue without manager assignment
-      }
+    // Create company if provided (for new admin signup)
+    let companyId = null;
+    if (value.company) {
+      const companyRecord = await prisma.$queryRaw`
+        INSERT INTO companies (id, name, createdAt, updatedAt) 
+        VALUES (UUID(), ${value.company}, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE id=id
+      `;
+      const [company] = await prisma.$queryRaw`SELECT id FROM companies WHERE name = ${value.company}`;
+      companyId = company?.id;
     }
     
-    // Extract employee-specific fields
-    const { managerId, ...userData } = value;
+    const { managerId, company, ...userData } = value;
+    
+    // Determine if this is a public signup (has company field) or admin creation
+    const isPublicSignup = !!value.company;
+    
+    // ADMIN accounts should never have a manager
+    // Public signup should never have a manager (always creates ADMIN)
+    // Admin dashboard can assign managers to EMPLOYEE/MANAGER roles
+    let finalManagerId = null;
+    if (value.role !== 'ADMIN' && !isPublicSignup && managerId) {
+      finalManagerId = managerId;
+    }
+    
+    // Prepare user data - only include company fields if provided
+    const createData = {
+      ...userData,
+      password: hashedPassword,
+      employeeId,
+      manager: finalManagerId
+    };
+    
+    // Add company fields only if company is provided
+    if (value.company) {
+      createData.company = value.company;
+      // companyId field is disabled due to schema constraints
+      // createData.companyId = companyId;
+    }
     
     const user = await prisma.users.create({
-      data: {
-        ...userData,
-        password: hashedPassword,
-        employeeId,
-        manager: assignedManager
-      },
+      data: createData,
       select: {
         id: true,
         name: true,
@@ -90,13 +98,13 @@ const register = async (req, res) => {
       }
     });
 
-    // Create employee record with manager relationship (optional)
-    if (assignedManager) {
+    // Create employee record with manager relationship (only for non-ADMIN roles)
+    if (finalManagerId && value.role !== 'ADMIN') {
       try {
         await prisma.employees.create({
           data: {
             userId: user.id,
-            manager: assignedManager
+            manager: finalManagerId
           }
         });
       } catch (employeeError) {
@@ -142,7 +150,8 @@ const login = async (req, res) => {
         email: user.email,
         role: user.role,
         department: user.department,
-        designation: user.designation
+        designation: user.designation,
+        company: user.company
       }
     }, 'Login successful');
   } catch (err) {
@@ -300,4 +309,35 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { register, login, logout, getProfile, forgotPassword, resetPassword };
+const sendVerificationOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return error(res, 'Email is required', 400);
+    
+    const otp = generateOTP();
+    storeOTP(email, otp);
+    
+    const sent = await sendOTP(email, otp);
+    if (!sent) return error(res, 'Failed to send OTP. Check SMTP configuration.', 500);
+    
+    success(res, null, 'OTP sent to email');
+  } catch (err) {
+    error(res, 'Failed to send OTP', 500);
+  }
+};
+
+const verifyEmailOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return error(res, 'Email and OTP required', 400);
+    
+    const isValid = verifyOTP(email, otp);
+    if (!isValid) return error(res, 'Invalid or expired OTP', 400);
+    
+    success(res, { verified: true }, 'Email verified successfully');
+  } catch (err) {
+    error(res, 'Failed to verify OTP', 500);
+  }
+};
+
+module.exports = { register, login, logout, getProfile, forgotPassword, resetPassword, sendVerificationOTP, verifyEmailOTP };

@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
+import { formatCurrency } from '../../../utils/numberUtils';
+
 export default function AnalyticsPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -108,7 +110,7 @@ export default function AnalyticsPage() {
         />
         <StatsCard
           title="Monthly Payroll"
-          value={`₹${(keyMetrics.monthlyPayroll / 100000).toFixed(1)}L`}
+          value={formatCurrency(keyMetrics.monthlyPayroll)}
           icon={DollarSign}
           color="purple"
         />
@@ -126,7 +128,7 @@ export default function AnalyticsPage() {
               <YAxis />
               <Tooltip 
                 formatter={(value, name) => [
-                  name === 'amount' ? `₹${value.toLocaleString()}` : value,
+                  name === 'amount' ? formatCurrency(value) : value,
                   name === 'amount' ? 'Payroll' : 'Employees'
                 ]}
               />
@@ -229,10 +231,10 @@ export default function AnalyticsPage() {
                         {month.employees}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ₹{month.amount.toLocaleString()}
+                        {formatCurrency(month.amount)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ₹{avgSalary.toLocaleString()}
+                        {formatCurrency(avgSalary)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

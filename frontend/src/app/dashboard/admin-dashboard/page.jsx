@@ -7,6 +7,8 @@ import StatsCard from '../../../components/StatsCard';
 import { payrollAPI, usersAPI, leaveAPI } from '../../../lib/api';
 import { useAuth } from '../../../hooks/useAuth';
 
+import { formatCurrency } from '../../../utils/numberUtils';
+
 export default function AdminDashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState({
@@ -98,7 +100,7 @@ export default function AdminDashboard() {
         />
         <StatsCard
           title="Total Payroll"
-          value={`₹${stats.totalPayroll.toLocaleString()}`}
+          value={formatCurrency(stats.totalPayroll)}
           icon={DollarSign}
           color="purple"
         />
@@ -109,11 +111,11 @@ export default function AdminDashboard() {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Payroll Trend</h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Payroll']} />
-            <Bar dataKey="payroll" fill="#3b82f6" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
+            <XAxis dataKey="name" stroke="#5f6368" />
+            <YAxis stroke="#5f6368" />
+            <Tooltip formatter={(value) => [formatCurrency(value), 'Payroll']} />
+            <Bar dataKey="payroll" fill="#1a73e8" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

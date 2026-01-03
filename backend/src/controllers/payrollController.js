@@ -19,8 +19,11 @@ const generatePayroll = async (req, res) => {
 
     const { month, year, userIds } = value;
 
-    // Get users to process payroll for
-    let whereClause = { basicSalary: { not: null } };
+    // Get users to process payroll for (filtered by company)
+    let whereClause = { 
+      basicSalary: { not: null },
+      companyId: req.user.companyId
+    };
     if (userIds && userIds.length > 0) {
       whereClause.id = { in: userIds };
     }
@@ -192,7 +195,11 @@ const getAllPayrolls = async (req, res) => {
     const { month, year, page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
 
-    let whereClause = {};
+    let whereClause = {
+      users: {
+        companyId: req.user.companyId
+      }
+    };
     if (month && year) {
       whereClause.month = month;
       whereClause.year = parseInt(year);
@@ -233,8 +240,13 @@ const getPayrollStats = async (req, res) => {
     const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
     const currentYear = currentDate.getFullYear();
 
-    // Get all payroll stats
+    // Get payroll stats filtered by company
     const payrollStats = await prisma.payrolls.aggregate({
+      where: {
+        users: {
+          companyId: req.user.companyId
+        }
+      },
       _sum: {
         gross: true,
         netPay: true,
@@ -245,9 +257,12 @@ const getPayrollStats = async (req, res) => {
       _count: true
     });
 
-    // Get total employees
+    // Get total employees in company
     const totalEmployees = await prisma.users.count({
-      where: { role: 'EMPLOYEE' }
+      where: { 
+        role: 'EMPLOYEE',
+        companyId: req.user.companyId
+      }
     });
 
     success(res, {

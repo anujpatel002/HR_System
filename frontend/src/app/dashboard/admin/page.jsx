@@ -11,6 +11,8 @@ import { ROLES, DEPARTMENTS } from '../../../utils/constants';
 import { canManageUsers, isAdmin, isHR } from '../../../utils/roleGuards';
 import Pagination from '../../../components/Pagination';
 
+import { getErrorMessage } from '../../../utils/errorUtils';
+
 export default function AdminPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
@@ -64,7 +66,7 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error('Error fetching users:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to load users';
+      const errorMessage = getErrorMessage(error);
       toast.error(errorMessage);
       setUsers([]);
     } finally {
@@ -125,8 +127,7 @@ export default function AdminPage() {
           const response = await fetch('/api/auth/register', {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
+              'Content-Type': 'application/json'
             },
             credentials: 'include',
             body: JSON.stringify(data)
@@ -150,7 +151,7 @@ export default function AdminPage() {
       setEditingUser(null);
       reset();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to save user');
+      toast.error(getErrorMessage(error));
     }
   };
 
@@ -184,7 +185,7 @@ export default function AdminPage() {
         toast.success('Delete request submitted for admin approval!');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to delete user');
+      toast.error(getErrorMessage(error));
     }
   };
 
@@ -218,9 +219,6 @@ export default function AdminPage() {
       <div className="text-center py-12">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading...</h2>
         <p className="text-gray-600">Please wait while we verify your authentication.</p>
-        <div className="mt-4 text-sm text-gray-500">
-          Token: {localStorage.getItem('token') ? 'Present' : 'Missing'}
-        </div>
       </div>
     );
   }
@@ -470,13 +468,13 @@ export default function AdminPage() {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => handleApproveRequest(request.id)}
-                      className="px-3 py-1 bg-green-600 text-white rounded text-sm"
+                      className="px-4 py-2 bg-accent-green text-white rounded-md text-sm font-medium hover:bg-green-600 transition-colors"
                     >
                       Approve
                     </button>
                     <button
                       onClick={() => handleRejectRequest(request.id)}
-                      className="px-3 py-1 bg-red-600 text-white rounded text-sm"
+                      className="px-4 py-2 bg-accent-red text-white rounded-md text-sm font-medium hover:bg-red-600 transition-colors"
                     >
                       Reject
                     </button>
@@ -539,14 +537,14 @@ export default function AdminPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    <span className={`badge ${
                       tableUser.role === 'ADMIN' 
-                        ? 'bg-red-100 text-red-800'
+                        ? 'badge-red'
                         : tableUser.role === 'HR_OFFICER'
-                        ? 'bg-blue-100 text-blue-800'
+                        ? 'badge-blue'
                         : tableUser.role === 'PAYROLL_OFFICER'
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-green-100 text-green-800'
+                        ? 'bg-purple-50 text-purple-700'
+                        : 'badge-green'
                     }`}>
                       {tableUser.role.replace('_', ' ')}
                     </span>
@@ -562,9 +560,9 @@ export default function AdminPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {tableUser.accountNumber && tableUser.ifscCode ? (
-                      <span className="text-green-600">✓ Complete</span>
+                      <span className="badge badge-green">✓ Complete</span>
                     ) : (
-                      <span className="text-red-600">✗ Missing</span>
+                      <span className="badge badge-red">✗ Missing</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

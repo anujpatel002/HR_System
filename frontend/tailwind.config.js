@@ -8,24 +8,48 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Google Cloud Platform / YouTube Theme
+        google: {
+          blue: '#1a73e8',
+          'blue-dark': '#1557b0',
+          'blue-light': '#4285f4',
+          red: '#ea4335',
+          yellow: '#fbbc04',
+          green: '#34a853',
+        },
         primary: {
-          50: '#eff6ff',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
+          50: '#e8f0fe',
+          100: '#d2e3fc',
+          200: '#aecbfa',
+          300: '#8ab4f8',
+          400: '#669df6',
+          500: '#4285f4',
+          600: '#1a73e8',
+          700: '#1967d2',
+          800: '#185abc',
+          900: '#174ea6',
+        },
+        accent: {
+          red: '#ea4335',
+          yellow: '#fbbc04',
+          green: '#34a853',
         },
         gray: {
-          50: '#f9fafb',
-          100: '#f3f4f6',
-          200: '#e5e7eb',
-          300: '#d1d5db',
-          400: '#9ca3af',
-          500: '#6b7280',
-          600: '#4b5563',
-          700: '#374151',
-          800: '#1f2937',
-          900: '#111827',
+          50: '#f8f9fa',
+          100: '#f1f3f4',
+          200: '#e8eaed',
+          300: '#dadce0',
+          400: '#bdc1c6',
+          500: '#9aa0a6',
+          600: '#80868b',
+          700: '#5f6368',
+          800: '#3c4043',
+          900: '#202124',
         }
+      },
+      boxShadow: {
+        'google': '0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15)',
+        'google-lg': '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)',
       }
     },
   },

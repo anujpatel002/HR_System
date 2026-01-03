@@ -7,6 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model companies {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  email     String?
+  phone     String?
+  address   String?
+  website   String?
+  industry  String?
+  size      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  // users     users[]
+}
+
 model activity_logs {
   id         String       @id @default(uuid())
   userId     String
@@ -132,6 +146,20 @@ model user_sessions {
   @@index([loginTime])
 }
 
+model password_resets {
+  id        String   @id
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
 model users {
   id            String          @id @default(uuid())
   email         String          @unique
@@ -161,17 +189,21 @@ model users {
   empCode       String?
   accountNumber String?
   ifscCode      String?
-  activity_logs activity_logs[]
-  attendance    attendance[]
-  employees     employees?
-  leaves        leaves[]
-  payrolls      payrolls[]
-  user_requests user_requests[]
-  user_sessions user_sessions[]
+  companyId     String?
+  // companyRel    companies?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  activity_logs     activity_logs[]
+  attendance        attendance[]
+  employees         employees?
+  leaves            leaves[]
+  payrolls          payrolls[]
+  user_requests     user_requests[]
+  user_sessions     user_sessions[]
+  password_resets   password_resets[]
 
   @@index([role])
   @@index([department])
   @@index([createdAt])
+  @@index([companyId])
 }
 
 model work_settings {

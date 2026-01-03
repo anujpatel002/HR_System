@@ -230,7 +230,7 @@ export default function LeavePage() {
                 <tr key={leave.id}>
                   {canManageLeaves(user?.role) && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {leave.user?.name}
+                      {leave.users?.name || 'N/A'}
                     </td>
                   )}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

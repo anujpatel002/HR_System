@@ -154,13 +154,13 @@ export default function AttendancePage() {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-field"
             />
             <Users className="w-5 h-5 text-gray-600" />
             <select
               value={selectedDepartment}
               onChange={(e) => setSelectedDepartment(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-field"
             >
               <option value="all">All Departments</option>
               {departments.map(dept => (
@@ -176,7 +176,9 @@ export default function AttendancePage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Today's Attendance</h2>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Clock className="h-8 w-8 text-blue-600" />
+              <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
+                <Clock className="h-6 w-6 text-primary-600" />
+              </div>
               <div>
                 <p className="text-sm text-gray-600">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
                 {attendanceData.find(a => format(new Date(a.date), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')) ? (
@@ -193,7 +195,7 @@ export default function AttendancePage() {
                 <CheckCircle className="h-4 w-4" />
                 <span>Check In</span>
               </button>
-              <button onClick={() => handleMarkAttendance('checkout', user.id)} className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center space-x-2">
+              <button onClick={() => handleMarkAttendance('checkout', user.id)} className="btn-danger flex items-center space-x-2">
                 <XCircle className="h-4 w-4" />
                 <span>Check Out</span>
               </button>
@@ -240,7 +242,7 @@ export default function AttendancePage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.checkOut ? format(new Date(record.checkOut), 'HH:mm') : '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.totalHours ? `${record.totalHours}h` : '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${record.status === 'PRESENT' ? 'bg-green-100 text-green-800' : record.status === 'ABSENT' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                    <span className={`badge ${record.status === 'PRESENT' ? 'badge-green' : record.status === 'ABSENT' ? 'badge-red' : 'badge-yellow'}`}>
                       {record.status}
                     </span>
                   </td>
@@ -248,10 +250,10 @@ export default function AttendancePage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex space-x-2">
                         {!record.checkIn && (
-                          <button onClick={() => handleMarkAttendance('checkin', record.userId)} className="text-green-600 hover:text-green-800 text-xs">Check In</button>
+                          <button onClick={() => handleMarkAttendance('checkin', record.userId)} className="text-accent-green hover:text-green-700 text-xs font-medium">Check In</button>
                         )}
                         {record.checkIn && !record.checkOut && (
-                          <button onClick={() => handleMarkAttendance('checkout', record.userId)} className="text-red-600 hover:text-red-800 text-xs">Check Out</button>
+                          <button onClick={() => handleMarkAttendance('checkout', record.userId)} className="text-accent-red hover:text-red-700 text-xs font-medium">Check Out</button>
                         )}
                       </div>
                     </td>

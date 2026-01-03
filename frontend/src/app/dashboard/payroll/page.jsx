@@ -259,7 +259,7 @@ export default function PayrollPage() {
                 <tr key={payroll.id}>
                   {canManagePayroll(user?.role) && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {payroll.user?.name}
+                      {payroll.users?.name || 'N/A'}
                     </td>
                   )}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

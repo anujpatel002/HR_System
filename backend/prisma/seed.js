@@ -10,10 +10,10 @@ async function main() {
   // Create admin user
   const adminPassword = await bcrypt.hash('admin123', 12);
   const admin = await prisma.users.upsert({
-    where: { email: 'admin@workzen.com' },
+    where: { email: 'admin@dayflow.com' },
     update: {},
     create: {
-      email: 'admin@workzen.com',
+      email: 'admin@dayflow.com',
       name: 'System Administrator',
       password: adminPassword,
       role: 'ADMIN',
@@ -27,10 +27,10 @@ async function main() {
   // Create HR Officer
   const hrPassword = await bcrypt.hash('hr123', 12);
   const hrOfficer = await prisma.users.upsert({
-    where: { email: 'hr@workzen.com' },
+    where: { email: 'hr@dayflow.com' },
     update: {},
     create: {
-      email: 'hr@workzen.com',
+      email: 'hr@dayflow.com',
       name: 'HR Manager',
       password: hrPassword,
       role: 'HR_OFFICER',
@@ -44,10 +44,10 @@ async function main() {
   // Create Payroll Officer
   const payrollPassword = await bcrypt.hash('payroll123', 12);
   const payrollOfficer = await prisma.users.upsert({
-    where: { email: 'payroll@workzen.com' },
+    where: { email: 'payroll@dayflow.com' },
     update: {},
     create: {
-      email: 'payroll@workzen.com',
+      email: 'payroll@dayflow.com',
       name: 'Payroll Manager',
       password: payrollPassword,
       role: 'PAYROLL_OFFICER',
@@ -63,21 +63,21 @@ async function main() {
   
   const employees = [
     {
-      email: 'john.doe@workzen.com',
+      email: 'john.doe@dayflow.com',
       name: 'John Doe',
       department: 'Engineering',
       designation: 'Software Developer',
       basicSalary: 60000
     },
     {
-      email: 'jane.smith@workzen.com',
+      email: 'jane.smith@dayflow.com',
       name: 'Jane Smith',
       department: 'Marketing',
       designation: 'Marketing Specialist',
       basicSalary: 55000
     },
     {
-      email: 'mike.johnson@workzen.com',
+      email: 'mike.johnson@dayflow.com',
       name: 'Mike Johnson',
       department: 'Sales',
       designation: 'Sales Executive',
@@ -99,8 +99,8 @@ async function main() {
   }
 
   // Get created users for sample data
-  const johnDoe = await prisma.users.findUnique({ where: { email: 'john.doe@workzen.com' } });
-  const janeSmith = await prisma.users.findUnique({ where: { email: 'jane.smith@workzen.com' } });
+  const johnDoe = await prisma.users.findUnique({ where: { email: 'john.doe@dayflow.com' } });
+  const janeSmith = await prisma.users.findUnique({ where: { email: 'jane.smith@dayflow.com' } });
 
   // Create sample attendance records for the last 30 days
   const today = new Date();
@@ -163,7 +163,12 @@ async function main() {
   ];
 
   for (const leave of leaveApplications) {
-    await prisma.leaves.create({ data: leave });
+    try {
+      await prisma.leaves.create({ data: leave });
+    } catch (error) {
+      // Skip if already exists
+      console.log('Leave application already exists, skipping...');
+    }
   }
 
   // Create sample payroll records
@@ -197,15 +202,25 @@ async function main() {
   ];
 
   for (const payroll of payrollData) {
-    await prisma.payrolls.create({ data: payroll });
+    await prisma.payrolls.upsert({
+      where: {
+        userId_month_year: {
+          userId: payroll.userId,
+          month: payroll.month,
+          year: payroll.year
+        }
+      },
+      update: {},
+      create: payroll
+    });
   }
 
   console.log('✅ Database seeded successfully!');
   console.log('📧 Default accounts:');
-  console.log('   Admin: admin@workzen.com / admin123');
-  console.log('   HR: hr@workzen.com / hr123');
-  console.log('   Payroll: payroll@workzen.com / payroll123');
-  console.log('   Employee: john.doe@workzen.com / employee123');
+  console.log('   Admin: admin@dayflow.com / admin123');
+  console.log('   HR: hr@dayflow.com / hr123');
+  console.log('   Payroll: payroll@dayflow.com / payroll123');
+  console.log('   Employee: john.doe@dayflow.com / employee123');
   console.log('📊 Sample data created:');
   console.log('   - 30 days of attendance records');
   console.log('   - 2 leave applications');

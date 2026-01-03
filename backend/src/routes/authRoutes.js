@@ -1,11 +1,13 @@
 const express = require('express');
-const { register, login, logout, getProfile, forgotPassword, resetPassword } = require('../controllers/authController');
+const { register, login, logout, getProfile, forgotPassword, resetPassword, sendVerificationOTP, verifyEmailOTP } = require('../controllers/authController');
 const authMiddleware = require('../middleware/authMiddleware');
 const roleMiddleware = require('../middleware/roleMiddleware');
 
 const router = express.Router();
 
-router.post('/register', authMiddleware, roleMiddleware(['ADMIN']), register);
+router.post('/send-otp', sendVerificationOTP);
+router.post('/verify-otp', verifyEmailOTP);
+router.post('/register', register);
 router.post('/login', login);
 router.post('/logout', authMiddleware, logout);
 router.get('/profile', authMiddleware, getProfile);

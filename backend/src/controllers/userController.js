@@ -66,7 +66,7 @@ const getAllUsers = async (req, res) => {
       selectFields.uanNo = true;
     }
 
-    let whereClause = {};
+    let whereClause = {}; // No company filtering - show all users
     
     // Role-based filtering
     if (userRole === 'EMPLOYEE') {
@@ -425,7 +425,8 @@ const createUser = async (req, res) => {
         role: value.role,
         employeeId,
         password: hashedPassword,
-        manager: assignedManager
+        manager: assignedManager,
+        companyId: req.user.companyId || null // Optional company inheritance
       },
       select: {
         id: true,
