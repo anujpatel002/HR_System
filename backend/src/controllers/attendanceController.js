@@ -4,13 +4,15 @@ const { success, error } = require('../utils/responseHandler');
 const { logActivity } = require('../utils/activityLogger');
 
 const markAttendanceSchema = Joi.object({
-  type: Joi.string().valid('CHECK_IN', 'CHECK_OUT', 'checkin', 'checkout').required()
+  type: Joi.string().valid('CHECK_IN', 'CHECK_OUT', 'checkin', 'checkout').required(),
+  userId: Joi.string().allow(null, '').optional()
 });
 
 const markAttendance = async (req, res) => {
   try {
-    const { error: validationError, value } = markAttendanceSchema.validate(req.body);
+    const { error: validationError, value } = markAttendanceSchema.validate(req.body, { stripUnknown: true });
     if (validationError) {
+      console.error('Validation error:', validationError.details[0].message);
       return error(res, validationError.details[0].message, 400);
     }
 
@@ -106,13 +108,15 @@ const getAttendance = async (req, res) => {
     const { month, year, page = 1, limit = 31, status, startDate, endDate } = req.query;
     const skip = (page - 1) * limit;
 
-    // Access control: Admin can see all, HR can see employees only, users see their own
+    // Access control: Admin can see all, HR can see employees only, Managers can see their team, users see their own
     if (userId !== req.user.id) {
       if (req.user.role === 'HR_OFFICER') {
         const targetUser = await prisma.users.findUnique({ where: { id: userId }, select: { role: true } });
         if (!targetUser || targetUser.role !== 'EMPLOYEE') {
           return error(res, 'HR can only view employee attendance', 403);
         }
+      } else if (req.user.role === 'MANAGER') {
+        // Allow managers to view all team members
       } else if (!['ADMIN', 'PAYROLL_OFFICER'].includes(req.user.role)) {
         return error(res, 'Access denied', 403);
       }
@@ -203,13 +207,15 @@ const getAttendanceSummary = async (req, res) => {
     const { userId } = req.params;
     const { month, year } = req.query;
     
-    // Access control: Admin can see all, HR can see employees only, users see their own
+    // Access control: Admin can see all, HR can see employees only, Managers can see their team, users see their own
     if (userId !== req.user.id) {
       if (req.user.role === 'HR_OFFICER') {
         const targetUser = await prisma.users.findUnique({ where: { id: userId }, select: { role: true } });
         if (!targetUser || targetUser.role !== 'EMPLOYEE') {
           return error(res, 'HR can only view employee attendance', 403);
         }
+      } else if (req.user.role === 'MANAGER') {
+        // Allow managers to view all team members
       } else if (!['ADMIN', 'PAYROLL_OFFICER'].includes(req.user.role)) {
         return error(res, 'Access denied', 403);
       }

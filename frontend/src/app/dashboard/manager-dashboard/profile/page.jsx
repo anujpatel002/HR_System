@@ -9,7 +9,7 @@ import { useDispatch } from 'react-redux';
 import { setCredentials } from '../../../../store/authSlice';
 import toast from 'react-hot-toast';
 
-export default function EmployeeProfilePage() {
+export default function ManagerProfilePage() {
   const { user } = useAuth();
   const dispatch = useDispatch();
   const router = useRouter();
@@ -62,7 +62,6 @@ export default function EmployeeProfilePage() {
     try {
       setLoading(true);
       
-      // Send all form fields
       const updateData = {
         name: formData.name,
         department: formData.department,
@@ -76,20 +75,14 @@ export default function EmployeeProfilePage() {
         uanNo: formData.uanNo
       };
       
-      console.log('Sending update data:', updateData);
-      console.log('User ID:', user.id);
-      
       const response = await usersAPI.update(user.id, updateData);
-      console.log('Update response:', response.data);
       
-      // Update user with response data
       const updatedUser = {
         ...user,
         ...response.data.data
       };
       dispatch(setCredentials({ user: updatedUser, token: localStorage.getItem('token') }));
       
-      // Update form data with the response
       setFormData({
         name: updatedUser.name || '',
         email: updatedUser.email || '',
@@ -107,7 +100,6 @@ export default function EmployeeProfilePage() {
       setIsEditing(false);
       toast.success('Profile updated successfully');
     } catch (error) {
-      console.error('Profile update error:', error);
       toast.error(error.response?.data?.message || 'Failed to update profile');
     } finally {
       setLoading(false);
@@ -177,7 +169,6 @@ export default function EmployeeProfilePage() {
       </div>
 
       <div className="bg-white rounded-lg shadow">
-        {/* Profile Header */}
         <div className="px-6 py-8 border-b border-gray-200">
           <div className="flex items-center space-x-6">
             <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center">
@@ -188,23 +179,20 @@ export default function EmployeeProfilePage() {
               <p className="text-lg text-gray-600">{user.designation}</p>
               <p className="text-sm text-gray-500">{user.department}</p>
               <div className="mt-2">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  {user.role.replace('_', ' ')}
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  MANAGER
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Profile Information */}
         <div className="px-6 py-6">
           <h3 className="text-lg font-medium text-gray-900 mb-6">Personal Information</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
               {isEditing ? (
                 <input
                   type="text"
@@ -219,30 +207,12 @@ export default function EmployeeProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              {isEditing ? (
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled
-                />
-              ) : (
-                <p className="text-gray-900 py-2">{user.email}</p>
-              )}
-              {isEditing && (
-                <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
-              )}
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+              <p className="text-gray-900 py-2">{user.email}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Department
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
               {isEditing ? (
                 <input
                   type="text"
@@ -257,9 +227,7 @@ export default function EmployeeProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Designation
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Designation</label>
               {isEditing ? (
                 <input
                   type="text"
@@ -274,9 +242,7 @@ export default function EmployeeProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
               {isEditing ? (
                 <input
                   type="tel"
@@ -292,16 +258,12 @@ export default function EmployeeProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Employee ID
-              </label>
-              <p className="text-gray-900 py-2">{user.id}</p>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Employee ID</label>
+              <p className="text-gray-900 py-2">{user.employeeId}</p>
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Address
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
               {isEditing ? (
                 <textarea
                   name="address"
@@ -318,15 +280,12 @@ export default function EmployeeProfilePage() {
           </div>
         </div>
 
-        {/* Bank Details */}
         <div className="px-6 py-6 border-t border-gray-200">
           <h3 className="text-lg font-medium text-gray-900 mb-6">Bank Details</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Bank Name
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Bank Name</label>
               {isEditing ? (
                 <input
                   type="text"
@@ -342,9 +301,7 @@ export default function EmployeeProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Account Number
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Account Number</label>
               {isEditing ? (
                 <input
                   type="text"
@@ -360,9 +317,7 @@ export default function EmployeeProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                IFSC Code
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">IFSC Code</label>
               {isEditing ? (
                 <input
                   type="text"
@@ -378,9 +333,7 @@ export default function EmployeeProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                PAN Number
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">PAN Number</label>
               {isEditing ? (
                 <input
                   type="text"
@@ -396,9 +349,7 @@ export default function EmployeeProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                UAN Number
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">UAN Number</label>
               {isEditing ? (
                 <input
                   type="text"
@@ -411,38 +362,6 @@ export default function EmployeeProfilePage() {
               ) : (
                 <p className="text-gray-900 py-2">{user.uanNo || 'Not provided'}</p>
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* Employment Information */}
-        <div className="px-6 py-6 border-t border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900 mb-6">Employment Information</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Role
-              </label>
-              <p className="text-gray-900 py-2">{user.role.replace('_', ' ')}</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Basic Salary
-              </label>
-              <p className="text-gray-900 py-2">
-                {user.basicSalary ? `₹${user.basicSalary.toLocaleString()}` : 'N/A'}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Join Date
-              </label>
-              <p className="text-gray-900 py-2">
-                {user.dateOfJoining ? new Date(user.dateOfJoining).toLocaleDateString() : 'N/A'}
-              </p>
             </div>
           </div>
         </div>

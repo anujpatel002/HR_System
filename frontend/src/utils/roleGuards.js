@@ -25,7 +25,7 @@ export const canManageUsers = (userRole) => {
 };
 
 export const canManageLeaves = (userRole) => {
-  return hasRole(userRole, [ROLES.ADMIN, ROLES.HR_OFFICER]);
+  return hasRole(userRole, [ROLES.ADMIN, ROLES.HR_OFFICER, ROLES.MANAGER]);
 };
 
 export const canManagePayroll = (userRole) => {

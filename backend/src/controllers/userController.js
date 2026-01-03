@@ -70,19 +70,34 @@ const getAllUsers = async (req, res) => {
     
     // Role-based filtering
     if (userRole === 'EMPLOYEE') {
-      whereClause = { id: req.user.id };
+      whereClause.id = req.user.id;
     } else if (userRole === 'MANAGER') {
-      // Managers can only see employees under their management
-      whereClause = { manager: req.user.id };
+      whereClause.OR = [
+        { id: req.user.id },
+        { manager: req.user.id }
+      ];
     }
-    // ADMIN and HR_OFFICER can see all users (no additional filtering)
     
-    if (search) {
+    // Additional filters
+    if (search && !whereClause.OR) {
       whereClause.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } }
       ];
+    } else if (search && whereClause.OR) {
+      // Combine manager filter with search
+      whereClause.AND = [
+        { OR: whereClause.OR },
+        {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } }
+          ]
+        }
+      ];
+      delete whereClause.OR;
     }
+    
     if (role) whereClause.role = role;
     if (department) whereClause.department = department;
 

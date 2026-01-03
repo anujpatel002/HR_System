@@ -241,13 +241,24 @@ const updateLeaveStatus = async (req, res) => {
       return error(res, 'Invalid status', 400);
     }
 
-    const leave = await prisma.leaves.findUnique({ where: { id } });
+    const leave = await prisma.leaves.findUnique({ 
+      where: { id },
+      include: { users: true }
+    });
+    
     if (!leave) {
       return error(res, 'Leave not found', 404);
     }
 
     if (leave.status !== 'PENDING') {
       return error(res, 'Leave already processed', 400);
+    }
+
+    // MANAGER can only approve their team's leaves
+    if (req.user.role === 'MANAGER') {
+      if (leave.users.manager !== req.user.id) {
+        return error(res, 'You can only approve leaves for your team members', 403);
+      }
     }
 
     const updatedLeave = await prisma.leaves.update({
@@ -260,11 +271,41 @@ const updateLeaveStatus = async (req, res) => {
       }
     });
 
+    // CRITICAL: Mark attendance as ABSENT for approved leaves
+    if (status === 'APPROVED') {
+      const startDate = new Date(leave.startDate);
+      const endDate = new Date(leave.endDate);
+      
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        
+        try {
+          await prisma.attendance.upsert({
+            where: {
+              userId_date: {
+                userId: leave.userId,
+                date: dateStart
+              }
+            },
+            update: { status: 'ABSENT' },
+            create: {
+              userId: leave.userId,
+              date: dateStart,
+              status: 'ABSENT'
+            }
+          });
+        } catch (attendanceError) {
+          console.error('Attendance update error:', attendanceError);
+        }
+      }
+    }
+
     // Log activity
     await logActivity(req.user.id, 'UPDATE', 'LEAVE', id, { status, leaveType: leave.type, applicant: updatedLeave.users.name });
 
     success(res, updatedLeave, `Leave ${status.toLowerCase()} successfully`);
   } catch (err) {
+    console.error('Update leave status error:', err);
     error(res, 'Failed to update leave status', 500);
   }
 };

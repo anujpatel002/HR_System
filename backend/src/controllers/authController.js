@@ -196,13 +196,24 @@ const getProfile = async (req, res) => {
         dateOfJoining: true,
         mobile: true,
         address: true,
-        createdAt: true
+        createdAt: true,
+        manager: true
       }
     });
 
+    let managerName = null;
+    if (user.manager) {
+      const manager = await prisma.users.findUnique({
+        where: { id: user.manager },
+        select: { name: true }
+      });
+      managerName = manager?.name;
+    }
+
     const responseUser = {
       ...user,
-      phone: user.mobile
+      phone: user.mobile,
+      managerName
     };
 
     success(res, responseUser, 'Profile retrieved successfully');

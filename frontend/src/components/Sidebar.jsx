@@ -28,6 +28,17 @@ const getNavigation = (userRole) => {
     ];
   }
   
+  if (userRole === 'MANAGER') {
+    return [
+      { name: 'Dashboard', href: '/dashboard/manager-dashboard', icon: LayoutDashboard },
+      { name: 'My Team', href: '/dashboard/manager-dashboard/team', icon: Users },
+      { name: 'Attendance', href: '/dashboard/manager-dashboard/attendance', icon: Clock },
+      { name: 'My Leave', href: '/dashboard/employee-dashboard/leave', icon: Calendar },
+      { name: 'Team Leave', href: '/dashboard/leave', icon: Calendar },
+      { name: 'My Profile', href: '/dashboard/manager-dashboard/profile', icon: Settings },
+    ];
+  }
+  
   return [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['all'] },
     { name: 'Overview', href: '/dashboard/admin-overview', icon: Users, roles: ['admin'] },
@@ -49,7 +60,7 @@ export default function Sidebar() {
   const navigation = getNavigation(user?.role);
 
   const isNavItemVisible = (item) => {
-    if (user?.role === 'EMPLOYEE') return true;
+    if (user?.role === 'EMPLOYEE' || user?.role === 'MANAGER') return true;
     if (item.roles?.includes('all')) return true;
     
     if (item.roles?.includes('admin') && user?.role === 'ADMIN') return true;

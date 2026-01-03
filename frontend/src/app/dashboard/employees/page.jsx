@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 
 export default function EmployeesPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [employees, setEmployees] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,61 +22,46 @@ export default function EmployeesPage() {
   const [totalEmployees, setTotalEmployees] = useState(0);
 
   useEffect(() => {
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
+    if (!['ADMIN', 'HR_OFFICER'].includes(user.role)) {
+      toast.error('Access denied. Admin/HR only.');
+      router.push('/dashboard');
+      return;
+    }
     fetchEmployees(1);
-    // checkTodayAttendance();
-  }, []);
+  }, [user]);
 
   const handlePageChange = (page) => {
     fetchEmployees(page);
   };
 
-  const fetchEmployees = (page = 1) => {
-    setLoading(true);
-    
-    // Mock data
-    const mockEmployees = [
-      {
-        id: '1',
-        employeeId: 'EMP001',
-        name: 'John Doe',
-        email: 'john@example.com',
-        role: 'EMPLOYEE',
-        department: 'IT',
-        designation: 'Developer',
-        basicSalary: 50000
-      },
-      {
-        id: '2',
-        employeeId: 'EMP002',
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        role: 'EMPLOYEE',
-        department: 'HR',
-        designation: 'HR Manager',
-        basicSalary: 60000
-      },
-      {
-        id: '3',
-        employeeId: 'EMP003',
-        name: 'Mike Johnson',
-        email: 'mike@example.com',
-        role: 'EMPLOYEE',
-        department: 'Finance',
-        designation: 'Accountant',
-        basicSalary: 45000
-      }
-    ];
-    
-    const employeesWithStatus = mockEmployees.map(emp => ({
-      ...emp,
-      status: Math.random() > 0.6 ? 'present' : Math.random() > 0.5 ? 'leave' : 'absent'
-    }));
-    
-    setEmployees(employeesWithStatus);
-    setTotalPages(1);
-    setTotalEmployees(mockEmployees.length);
-    setCurrentPage(page);
-    setLoading(false);
+  const fetchEmployees = async (page = 1) => {
+    try {
+      setLoading(true);
+      const response = await usersAPI.getAll({ page, limit: 100 });
+      const data = response.data.data;
+      const users = data.users || [];
+      
+      // Add random status for display
+      const employeesWithStatus = users.map(emp => ({
+        ...emp,
+        status: Math.random() > 0.6 ? 'present' : Math.random() > 0.5 ? 'leave' : 'absent'
+      }));
+      
+      setEmployees(employeesWithStatus);
+      setTotalPages(data.pagination?.pages || 1);
+      setTotalEmployees(data.pagination?.total || 0);
+      setCurrentPage(page);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      toast.error('Failed to load employees');
+      setEmployees([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // const checkTodayAttendance = async () => {

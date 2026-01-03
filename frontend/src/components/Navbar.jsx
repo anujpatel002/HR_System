@@ -75,7 +75,12 @@ export default function Navbar() {
             
             <div className="flex items-center space-x-2">
               <User className="h-5 w-5 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">{user?.name}</span>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-700">{user?.name}</span>
+                {user?.role === 'EMPLOYEE' && user?.managerName && (
+                  <span className="text-xs text-gray-500">Manager: {user.managerName}</span>
+                )}
+              </div>
               <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                 {user?.role?.replace('_', ' ')}
               </span>
