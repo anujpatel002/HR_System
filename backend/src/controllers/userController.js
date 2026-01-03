@@ -46,11 +46,10 @@ const updateUserSchema = Joi.object({
 
 const getAllUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, search, role, department } = req.query;
     const skip = (page - 1) * limit;
     const userRole = req.user.role;
 
-    // Define what fields each role can see
     const selectFields = {
       id: true,
       employeeId: true,
@@ -61,7 +60,6 @@ const getAllUsers = async (req, res) => {
       createdAt: true
     };
 
-    // Only ADMIN and HR_OFFICER can see sensitive data
     if (userRole === 'ADMIN' || userRole === 'HR_OFFICER') {
       selectFields.role = true;
       selectFields.basicSalary = true;
@@ -72,8 +70,16 @@ const getAllUsers = async (req, res) => {
       selectFields.uanNo = true;
     }
 
-    // Employees can only see their own data
-    const whereClause = userRole === 'EMPLOYEE' ? { id: req.user.id } : {};
+    let whereClause = userRole === 'EMPLOYEE' ? { id: req.user.id } : {};
+    
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    if (role) whereClause.role = role;
+    if (department) whereClause.department = department;
 
     const [users, total] = await Promise.all([
       prisma.users.findMany({
@@ -83,10 +89,9 @@ const getAllUsers = async (req, res) => {
         skip: parseInt(skip),
         take: parseInt(limit)
       }),
-      prisma.users.count(userRole === 'EMPLOYEE' ? { where: whereClause } : {})
+      prisma.users.count({ where: whereClause })
     ]);
 
-    // Add bank details status to each user (only for ADMIN/HR)
     const usersWithStatus = users.map(user => {
       const userData = { ...user };
       if (userRole === 'ADMIN' || userRole === 'HR_OFFICER') {
@@ -112,6 +117,11 @@ const getAllUsers = async (req, res) => {
 const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // SECURITY: Users can only view their own profile unless they're ADMIN/HR
+    if (id !== req.user.id && !['ADMIN', 'HR_OFFICER'].includes(req.user.role)) {
+      return error(res, 'Access denied', 403);
+    }
     
     const user = await prisma.users.findUnique({
       where: { id },
@@ -178,6 +188,14 @@ const updateUser = async (req, res) => {
     const existingUser = await prisma.users.findUnique({ where: { id } });
     if (!existingUser) {
       return error(res, 'User not found', 404);
+    }
+
+    // Check email uniqueness if email is being updated
+    if (value.email && value.email !== existingUser.email) {
+      const emailExists = await prisma.users.findUnique({ where: { email: value.email } });
+      if (emailExists) {
+        return error(res, 'Email already exists', 400);
+      }
     }
 
     // Update all profile fields from validated data
@@ -423,4 +441,29 @@ const getManagers = async (req, res) => {
   }
 };
 
-module.exports = { getAllUsers, getUserById, createUser, updateUser, deleteUser, getDepartments, getManagers };
+const bulkUpdateUsers = async (req, res) => {
+  try {
+    const { userIds, action } = req.body;
+    
+    if (!['ADMIN', 'HR_OFFICER'].includes(req.user.role)) {
+      return error(res, 'Access denied', 403);
+    }
+
+    let updateData = {};
+    if (action === 'activate') updateData.isActive = true;
+    else if (action === 'deactivate') updateData.isActive = false;
+    else return error(res, 'Invalid action', 400);
+
+    await prisma.users.updateMany({
+      where: { id: { in: userIds } },
+      data: updateData
+    });
+
+    await logActivity(req.user.id, 'UPDATE', 'USER', null, { type: 'bulk', action, count: userIds.length });
+    success(res, null, `${userIds.length} users ${action}d successfully`);
+  } catch (err) {
+    error(res, 'Failed to bulk update users', 500);
+  }
+};
+
+module.exports = { getAllUsers, getUserById, createUser, updateUser, deleteUser, getDepartments, getManagers, bulkUpdateUsers };

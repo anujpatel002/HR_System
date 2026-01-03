@@ -1,0 +1,636 @@
+// Enhanced HRMS Schema - Production Ready
+// This extends the existing schema without breaking changes
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// CORE AUTHENTICATION & AUTHORIZATION
+// ============================================
+
+model users {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  password      String
+  roleId        String          // Changed from enum to FK
+  status        UserStatus      @default(ACTIVE)
+  emailVerified Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  // Relations
+  role              roles                  @relation(fields: [roleId], references: [id])
+  employee          employees?
+  attendance        attendance[]
+  leaves            leaves[]
+  leaveApprovals    leave_approvals[]      // As approver
+  payrolls          payrolls[]
+  activityLogs      activity_logs[]
+  userSessions      user_sessions[]
+  userRequests      user_requests[]
+  passwordResets    password_resets[]
+  emailVerifications email_verifications[]
+  
+  @@index([roleId])
+  @@index([email])
+  @@index([status])
+}
+
+model roles {
+  id          String   @id @default(uuid())
+  name        String   @unique // ADMIN, HR_OFFICER, PAYROLL_OFFICER, EMPLOYEE, MANAGER
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  users           users[]
+  rolePermissions role_permissions[]
+}
+
+model permissions {
+  id          String   @id @default(uuid())
+  module      String   // users, attendance, leaves, payroll, etc.
+  action      String   // create, read, update, delete, approve
+  description String?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  rolePermissions role_permissions[]
+  
+  @@unique([module, action])
+  @@index([module])
+}
+
+model role_permissions {
+  id           String   @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+  
+  // Relations
+  role       roles       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission permissions @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+// ============================================
+// EMPLOYEE MANAGEMENT
+// ============================================
+
+model employees {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  employeeCode   String    @unique
+  departmentId   String?
+  designationId  String?
+  managerId      String?   // Self-referencing for reporting structure
+  
+  // Personal Information
+  firstName      String
+  lastName       String
+  dateOfBirth    DateTime?
+  gender         Gender?
+  maritalStatus  MaritalStatus?
+  nationality    String?
+  personalEmail  String?
+  mobile         String?
+  emergencyContact String?
+  address        String?   @db.Text
+  
+  // Employment Information
+  dateOfJoining  DateTime?
+  dateOfLeaving  DateTime?
+  employmentType EmploymentType @default(FULL_TIME)
+  probationEnd   DateTime?
+  confirmationDate DateTime?
+  
+  // Compensation
+  basicSalary    Float?
+  currency       String    @default("USD")
+  
+  // Bank Details
+  bankName       String?
+  accountNumber  String?
+  ifscCode       String?
+  panNo          String?
+  uanNo          String?
+  
+  // System
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  // Relations
+  user              users                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department        departments?           @relation(fields: [departmentId], references: [id])
+  designation       designations?          @relation(fields: [designationId], references: [id])
+  manager           employees?             @relation("ManagerSubordinate", fields: [managerId], references: [id])
+  subordinates      employees[]            @relation("ManagerSubordinate")
+  documents         employee_documents[]
+  leaveBalances     leave_balances[]
+  attendanceSummary attendance_summary[]
+  
+  @@index([userId])
+  @@index([departmentId])
+  @@index([designationId])
+  @@index([managerId])
+  @@index([employeeCode])
+  @@index([isActive])
+}
+
+model departments {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique
+  description String?  @db.Text
+  parentId    String?  // For department hierarchy
+  managerId   String?  // Department head
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  parent      departments?  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children    departments[] @relation("DepartmentHierarchy")
+  employees   employees[]
+  
+  @@index([parentId])
+  @@index([code])
+}
+
+model designations {
+  id          String   @id @default(uuid())
+  title       String   @unique
+  level       Int      // 1=Entry, 2=Junior, 3=Mid, 4=Senior, 5=Lead, 6=Manager, 7=Director
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  employees employees[]
+  
+  @@index([level])
+}
+
+model employee_documents {
+  id           String       @id @default(uuid())
+  employeeId   String
+  documentType DocumentType
+  fileName     String
+  filePath     String
+  fileSize     Int
+  mimeType     String
+  uploadedBy   String
+  expiryDate   DateTime?
+  isVerified   Boolean      @default(false)
+  verifiedBy   String?
+  verifiedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  
+  // Relations
+  employee employees @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  @@index([employeeId])
+  @@index([documentType])
+}
+
+// ============================================
+// ATTENDANCE MANAGEMENT
+// ============================================
+
+model attendance {
+  id         String           @id @default(uuid())
+  userId     String
+  date       Date
+  checkIn    DateTime?
+  checkOut   DateTime?
+  totalHours Float?
+  status     AttendanceStatus @default(PRESENT)
+  remarks    String?          @db.Text
+  location   String?          // GPS coordinates or office location
+  ipAddress  String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  
+  // Relations
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+  @@index([status])
+}
+
+model attendance_summary {
+  id              String   @id @default(uuid())
+  employeeId      String
+  month           Int      // 1-12
+  year            Int
+  totalDays       Int
+  presentDays     Int
+  absentDays      Int
+  halfDays        Int
+  leaveDays       Int
+  weekendDays     Int
+  holidayDays     Int
+  totalHours      Float
+  overtimeHours   Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  employee employees @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  @@unique([employeeId, month, year])
+  @@index([employeeId])
+  @@index([year, month])
+}
+
+// ============================================
+// LEAVE MANAGEMENT
+// ============================================
+
+model leave_types {
+  id                String   @id @default(uuid())
+  name              String   @unique // Sick, Casual, Annual, Maternity, Paternity
+  code              String   @unique
+  description       String?  @db.Text
+  defaultBalance    Int      // Annual allocation
+  maxCarryForward   Int      @default(0)
+  isPaid            Boolean  @default(true)
+  requiresApproval  Boolean  @default(true)
+  minDaysNotice     Int      @default(0)
+  maxConsecutiveDays Int?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  leaves        leaves[]
+  leaveBalances leave_balances[]
+  
+  @@index([code])
+}
+
+model leave_balances {
+  id            String   @id @default(uuid())
+  employeeId    String
+  leaveTypeId   String
+  year          Int
+  allocated     Int
+  used          Int      @default(0)
+  pending       Int      @default(0)
+  available     Int      // Calculated: allocated - used - pending
+  carriedForward Int     @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  employee  employees   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType leave_types @relation(fields: [leaveTypeId], references: [id])
+  
+  @@unique([employeeId, leaveTypeId, year])
+  @@index([employeeId])
+  @@index([leaveTypeId])
+  @@index([year])
+}
+
+model leaves {
+  id          String      @id @default(uuid())
+  userId      String
+  leaveTypeId String
+  startDate   Date
+  endDate     Date
+  totalDays   Int
+  reason      String      @db.Text
+  status      LeaveStatus @default(PENDING)
+  appliedAt   DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  // Relations
+  user          users             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leaveType     leave_types       @relation(fields: [leaveTypeId], references: [id])
+  approvals     leave_approvals[]
+  
+  @@index([userId])
+  @@index([leaveTypeId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+model leave_approvals {
+  id         String         @id @default(uuid())
+  leaveId    String
+  approverId String
+  level      Int            // 1=Manager, 2=HR, 3=Admin (approval chain)
+  status     ApprovalStatus @default(PENDING)
+  comments   String?        @db.Text
+  approvedAt DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  
+  // Relations
+  leave    leaves @relation(fields: [leaveId], references: [id], onDelete: Cascade)
+  approver users  @relation(fields: [approverId], references: [id])
+  
+  @@index([leaveId])
+  @@index([approverId])
+  @@index([status])
+  @@index([level])
+}
+
+// ============================================
+// PAYROLL MANAGEMENT
+// ============================================
+
+model payrolls {
+  id             String        @id @default(uuid())
+  userId         String
+  month          Int           // 1-12
+  year           Int
+  basicSalary    Float
+  allowances     Float         @default(0)
+  bonuses        Float         @default(0)
+  overtime       Float         @default(0)
+  gross          Float
+  pf             Float         @default(0)
+  tax            Float         @default(0)
+  otherDeductions Float        @default(0)
+  deductions     Float
+  netPay         Float
+  paymentDate    DateTime?
+  paymentMethod  PaymentMethod @default(BANK_TRANSFER)
+  status         PayrollStatus @default(DRAFT)
+  remarks        String?       @db.Text
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  
+  // Relations
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, month, year])
+  @@index([userId])
+  @@index([year, month])
+  @@index([status])
+}
+
+// ============================================
+// SYSTEM & AUDIT
+// ============================================
+
+model activity_logs {
+  id         String       @id @default(uuid())
+  userId     String
+  action     ActivityType
+  module     String       // users, attendance, leaves, payroll
+  targetId   String?
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime     @default(now())
+  
+  // Relations
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([module])
+  @@index([createdAt])
+}
+
+model user_sessions {
+  id           String    @id @default(uuid())
+  userId       String
+  token        String    @unique
+  isActive     Boolean   @default(true)
+  loginTime    DateTime  @default(now())
+  logoutTime   DateTime?
+  ipAddress    String?
+  userAgent    String?
+  lastActivity DateTime  @default(now())
+  expiresAt    DateTime
+  
+  // Relations
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+  @@index([isActive])
+  @@index([expiresAt])
+}
+
+model user_requests {
+  id           String        @id @default(uuid())
+  requesterId  String
+  type         RequestType
+  targetUserId String?
+  data         Json
+  status       RequestStatus @default(PENDING)
+  adminNote    String?       @db.Text
+  processedBy  String?
+  processedAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  // Relations
+  requester users @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  
+  @@index([requesterId])
+  @@index([status])
+  @@index([type])
+}
+
+model password_resets {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  
+  // Relations
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model email_verifications {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  
+  // Relations
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model holidays {
+  id          String      @id @default(uuid())
+  name        String
+  date        Date
+  type        HolidayType @default(PUBLIC)
+  description String?     @db.Text
+  isRecurring Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  @@index([date])
+  @@index([type])
+}
+
+model work_settings {
+  id              String   @id @default(uuid())
+  workStartTime   String   @default("09:00")
+  workEndTime     String   @default("17:00")
+  workingDays     String   @default("1,2,3,4,5") // 1=Mon, 7=Sun
+  lunchBreakStart String   @default("12:00")
+  lunchBreakEnd   String   @default("13:00")
+  checkInPopup    Boolean  @default(true)
+  popupStartTime  String   @default("08:45")
+  popupEndTime    String   @default("09:15")
+  weeklyHours     Float    @default(40)
+  overtimeRate    Float    @default(1.5)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  CONSULTANT
+}
+
+enum DocumentType {
+  RESUME
+  OFFER_LETTER
+  ID_PROOF
+  ADDRESS_PROOF
+  EDUCATION_CERTIFICATE
+  EXPERIENCE_LETTER
+  BANK_STATEMENT
+  PAN_CARD
+  AADHAR_CARD
+  PASSPORT
+  OTHER
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LATE
+  ON_LEAVE
+  WEEKEND
+  HOLIDAY
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CHEQUE
+  UPI
+}
+
+enum PayrollStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+enum ActivityType {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  APPROVE
+  REJECT
+  EXPORT
+}
+
+enum RequestType {
+  CREATE_USER
+  UPDATE_USER
+  DELETE_USER
+  SALARY_CHANGE
+  PROMOTION
+  TRANSFER
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum HolidayType {
+  PUBLIC
+  OPTIONAL
+  RESTRICTED
+}

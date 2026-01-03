@@ -1,6 +1,12 @@
 # WorkZen - Smart HR Management System
 
-A complete HR management system built with Next.js, Node.js, and PostgreSQL.
+A complete HR management system built with Next.js, Node.js, and MySQL.
+
+> **🔄 Database Migration Notice**: This project now uses **MySQL** instead of PostgreSQL.
+> 
+> **New to this project?** See [MYSQL_QUICKSTART.md](MYSQL_QUICKSTART.md) for quick setup.
+> 
+> **Migrating from PostgreSQL?** See [POSTGRESQL_TO_MYSQL_MIGRATION.md](POSTGRESQL_TO_MYSQL_MIGRATION.md) for migration details.
 
 ## Features
 
@@ -15,14 +21,14 @@ A complete HR management system built with Next.js, Node.js, and PostgreSQL.
 
 - **Frontend**: Next.js 14, Tailwind CSS, Recharts
 - **Backend**: Node.js, Express.js, Prisma ORM
-- **Database**: PostgreSQL
+- **Database**: MySQL
 - **Authentication**: JWT with HTTP-only cookies
 
 ## Quick Start
 
 ### Prerequisites
 - Node.js 18+
-- PostgreSQL database
+- MySQL database (8.0+ recommended)
 - Git
 
 ### Setup
@@ -47,11 +53,18 @@ npm install
 cd backend
 # Copy environment file
 cp .env.example .env
-# Edit .env with your database URL
+# Edit .env with your MySQL database URL
+
+# Create database first in MySQL
+# mysql -u root -p
+# CREATE DATABASE hr_system;
 
 # Run migrations
 npx prisma migrate dev
 npx prisma generate
+
+# Seed database with default users
+npm run seed
 ```
 
 3. **Start development servers**

@@ -163,7 +163,6 @@ const getProfile = async (req, res) => {
       }
     });
 
-    // Map mobile to phone for frontend compatibility
     const responseUser = {
       ...user,
       phone: user.mobile
@@ -175,4 +174,82 @@ const getProfile = async (req, res) => {
   }
 };
 
-module.exports = { register, login, logout, getProfile };
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return error(res, 'Email is required', 400);
+    }
+
+    const user = await prisma.users.findUnique({ where: { email } });
+    if (!user) {
+      return success(res, null, 'If email exists, reset link will be sent');
+    }
+
+    const token = require('crypto').randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 3600000); // 1 hour
+
+    await prisma.password_resets.create({
+      data: {
+        id: `reset-${Date.now()}`,
+        userId: user.id,
+        token,
+        expiresAt
+      }
+    });
+
+    // TODO: Send email with reset link
+    // For now, return token (remove in production)
+    success(res, { token }, 'Password reset link sent to email');
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    error(res, 'Failed to process request', 500);
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      return error(res, 'Token and new password are required', 400);
+    }
+
+    if (newPassword.length < 6) {
+      return error(res, 'Password must be at least 6 characters', 400);
+    }
+
+    const resetRecord = await prisma.password_resets.findUnique({
+      where: { token },
+      include: { users: true }
+    });
+
+    if (!resetRecord || resetRecord.isUsed) {
+      return error(res, 'Invalid or expired token', 400);
+    }
+
+    if (new Date() > resetRecord.expiresAt) {
+      return error(res, 'Token has expired', 400);
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    
+    await prisma.users.update({
+      where: { id: resetRecord.userId },
+      data: { password: hashedPassword }
+    });
+
+    await prisma.password_resets.update({
+      where: { token },
+      data: { isUsed: true, usedAt: new Date() }
+    });
+
+    success(res, null, 'Password reset successfully');
+  } catch (err) {
+    console.error('Reset password error:', err);
+    error(res, 'Failed to reset password', 500);
+  }
+};
+
+module.exports = { register, login, logout, getProfile, forgotPassword, resetPassword };

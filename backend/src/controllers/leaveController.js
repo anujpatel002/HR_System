@@ -10,6 +10,83 @@ const applyLeaveSchema = Joi.object({
   reason: Joi.string().min(10).required()
 });
 
+const getLeaveBalance = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (userId !== req.user.id && !['ADMIN', 'HR_OFFICER'].includes(req.user.role)) {
+      return error(res, 'Access denied', 403);
+    }
+
+    const currentYear = new Date().getFullYear();
+    
+    // Get leave types
+    const leaveTypes = await prisma.leave_types.findMany({
+      where: { isActive: true }
+    });
+
+    // Get used leaves for current year
+    const usedLeaves = await prisma.leaves.groupBy({
+      by: ['type'],
+      where: {
+        userId,
+        status: { in: ['APPROVED', 'PENDING'] },
+        startDate: {
+          gte: new Date(currentYear, 0, 1),
+          lte: new Date(currentYear, 11, 31)
+        }
+      },
+      _count: { id: true }
+    });
+
+    const balance = leaveTypes.map(lt => {
+      const used = usedLeaves.find(ul => ul.type === lt.code)?._count?.id || 0;
+      return {
+        type: lt.name,
+        code: lt.code,
+        total: lt.defaultBalance,
+        used,
+        available: lt.defaultBalance - used
+      };
+    });
+
+    success(res, balance, 'Leave balance retrieved successfully');
+  } catch (err) {
+    console.error('Get leave balance error:', err);
+    error(res, 'Failed to get leave balance', 500);
+  }
+};
+
+const cancelLeave = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const leave = await prisma.leaves.findUnique({ where: { id } });
+    if (!leave) {
+      return error(res, 'Leave not found', 404);
+    }
+
+    if (leave.userId !== req.user.id) {
+      return error(res, 'Access denied', 403);
+    }
+
+    if (leave.status !== 'PENDING') {
+      return error(res, 'Only pending leaves can be cancelled', 400);
+    }
+
+    const cancelledLeave = await prisma.leaves.update({
+      where: { id },
+      data: { status: 'CANCELLED' }
+    });
+
+    await logActivity(req.user.id, 'UPDATE', 'LEAVE', id, { action: 'cancelled' });
+
+    success(res, cancelledLeave, 'Leave cancelled successfully');
+  } catch (err) {
+    error(res, 'Failed to cancel leave', 500);
+  }
+};
+
 const applyLeave = async (req, res) => {
   try {
     const { error: validationError, value } = applyLeaveSchema.validate(req.body);
@@ -61,17 +138,17 @@ const applyLeave = async (req, res) => {
 const getLeaves = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { status, page = 1, limit = 10 } = req.query;
+    const { status, page = 1, limit = 10, startDate, endDate } = req.query;
     const skip = (page - 1) * limit;
 
-    // Check access permissions
     if (userId !== req.user.id && !['ADMIN', 'HR_OFFICER', 'PAYROLL_OFFICER'].includes(req.user.role)) {
       return error(res, 'Access denied', 403);
     }
 
     let whereClause = { userId };
-    if (status) {
-      whereClause.status = status;
+    if (status) whereClause.status = status;
+    if (startDate && endDate) {
+      whereClause.startDate = { gte: new Date(startDate), lte: new Date(endDate) };
     }
 
     const [leaves, total] = await Promise.all([
@@ -105,12 +182,13 @@ const getLeaves = async (req, res) => {
 
 const getAllLeaves = async (req, res) => {
   try {
-    const { status, page = 1, limit = 10 } = req.query;
+    const { status, page = 1, limit = 10, startDate, endDate } = req.query;
     const skip = (page - 1) * limit;
     
     let whereClause = {};
-    if (status) {
-      whereClause.status = status;
+    if (status) whereClause.status = status;
+    if (startDate && endDate) {
+      whereClause.startDate = { gte: new Date(startDate), lte: new Date(endDate) };
     }
 
     const [leaves, total] = await Promise.all([
@@ -171,7 +249,7 @@ const updateLeaveStatus = async (req, res) => {
     });
 
     // Log activity
-    await logActivity(req.user.id, 'UPDATE', 'LEAVE', id, { status, leaveType: leave.type, applicant: updatedLeave.user.name });
+    await logActivity(req.user.id, 'UPDATE', 'LEAVE', id, { status, leaveType: leave.type, applicant: updatedLeave.users.name });
 
     success(res, updatedLeave, `Leave ${status.toLowerCase()} successfully`);
   } catch (err) {
@@ -179,4 +257,4 @@ const updateLeaveStatus = async (req, res) => {
   }
 };
 
-module.exports = { applyLeave, getLeaves, getAllLeaves, updateLeaveStatus };
+module.exports = { applyLeave, getLeaves, getAllLeaves, updateLeaveStatus, getLeaveBalance, cancelLeave };

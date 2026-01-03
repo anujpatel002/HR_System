@@ -9,7 +9,7 @@ async function main() {
 
   // Create admin user
   const adminPassword = await bcrypt.hash('admin123', 12);
-  const admin = await prisma.user.upsert({
+  const admin = await prisma.users.upsert({
     where: { email: 'admin@workzen.com' },
     update: {},
     create: {
@@ -26,7 +26,7 @@ async function main() {
 
   // Create HR Officer
   const hrPassword = await bcrypt.hash('hr123', 12);
-  const hrOfficer = await prisma.user.upsert({
+  const hrOfficer = await prisma.users.upsert({
     where: { email: 'hr@workzen.com' },
     update: {},
     create: {
@@ -43,7 +43,7 @@ async function main() {
 
   // Create Payroll Officer
   const payrollPassword = await bcrypt.hash('payroll123', 12);
-  const payrollOfficer = await prisma.user.upsert({
+  const payrollOfficer = await prisma.users.upsert({
     where: { email: 'payroll@workzen.com' },
     update: {},
     create: {
@@ -86,7 +86,7 @@ async function main() {
   ];
 
   for (const emp of employees) {
-    await prisma.user.upsert({
+    await prisma.users.upsert({
       where: { email: emp.email },
       update: {},
       create: {
@@ -99,8 +99,8 @@ async function main() {
   }
 
   // Get created users for sample data
-  const johnDoe = await prisma.user.findUnique({ where: { email: 'john.doe@workzen.com' } });
-  const janeSmith = await prisma.user.findUnique({ where: { email: 'jane.smith@workzen.com' } });
+  const johnDoe = await prisma.users.findUnique({ where: { email: 'john.doe@workzen.com' } });
+  const janeSmith = await prisma.users.findUnique({ where: { email: 'jane.smith@workzen.com' } });
 
   // Create sample attendance records for the last 30 days
   const today = new Date();
@@ -163,7 +163,7 @@ async function main() {
   ];
 
   for (const leave of leaveApplications) {
-    await prisma.leave.create({ data: leave });
+    await prisma.leaves.create({ data: leave });
   }
 
   // Create sample payroll records
@@ -197,7 +197,7 @@ async function main() {
   ];
 
   for (const payroll of payrollData) {
-    await prisma.payroll.create({ data: payroll });
+    await prisma.payrolls.create({ data: payroll });
   }
 
   console.log('✅ Database seeded successfully!');

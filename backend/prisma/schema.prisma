@@ -3,12 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
 model activity_logs {
-  id         String       @id
+  id         String       @id @default(uuid())
   userId     String
   action     ActivityType
   targetType String
@@ -22,7 +22,7 @@ model activity_logs {
 }
 
 model attendance {
-  id         String           @id
+  id         String           @id @default(uuid())
   userId     String
   date       DateTime         @default(now())
   checkIn    DateTime?
@@ -38,7 +38,7 @@ model attendance {
 }
 
 model employees {
-  id            String    @id
+  id            String    @id @default(uuid())
   userId        String    @unique
   dateOfBirth   DateTime?
   gender        String?
@@ -58,12 +58,12 @@ model employees {
   panNo         String?
   uanNo         String?
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime  @updatedAt
   users         users     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model leaves {
-  id        String      @id
+  id        String      @id @default(uuid())
   userId    String
   type      LeaveType
   startDate DateTime
@@ -79,7 +79,7 @@ model leaves {
 }
 
 model payrolls {
-  id          String   @id
+  id          String   @id @default(uuid())
   userId      String
   month       String
   year        Int
@@ -95,10 +95,11 @@ model payrolls {
   @@unique([userId, month, year])
   @@index([userId])
   @@index([year, month])
+  @@index([createdAt])
 }
 
 model user_requests {
-  id           String        @id
+  id           String        @id @default(uuid())
   requesterId  String
   type         RequestType
   targetUserId String?
@@ -106,7 +107,7 @@ model user_requests {
   status       RequestStatus @default(PENDING)
   adminNote    String?
   createdAt    DateTime      @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime      @updatedAt
   users        users         @relation(fields: [requesterId], references: [id], onDelete: Cascade)
 
   @@index([requesterId])
@@ -115,7 +116,7 @@ model user_requests {
 }
 
 model user_sessions {
-  id               String    @id
+  id               String    @id @default(uuid())
   userId           String
   isActive         Boolean   @default(true)
   loginTime        DateTime  @default(now())
@@ -132,7 +133,7 @@ model user_sessions {
 }
 
 model users {
-  id            String          @id
+  id            String          @id @default(uuid())
   email         String          @unique
   name          String
   password      String
@@ -141,7 +142,7 @@ model users {
   designation   String?
   basicSalary   Float?
   createdAt     DateTime        @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime        @updatedAt
   employeeId    String?         @unique
   bankName      String?
   panNo         String?
@@ -174,7 +175,7 @@ model users {
 }
 
 model work_settings {
-  id              String   @id
+  id              String   @id @default(uuid())
   workStartTime   String   @default("09:00")
   workEndTime     String   @default("17:00")
   workingDays     String   @default("1,2,3,4,5")
@@ -184,7 +185,7 @@ model work_settings {
   popupStartTime  String   @default("08:45")
   popupEndTime    String   @default("09:15")
   createdAt       DateTime @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime @updatedAt
 }
 
 enum ActivityType {

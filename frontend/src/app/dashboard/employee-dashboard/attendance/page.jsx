@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Clock, Calendar, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, Calendar, CheckCircle, XCircle, Download, Filter, Grid, List } from 'lucide-react';
 import { attendanceAPI } from '../../../../lib/api';
 import { useAuth } from '../../../../hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { exportToCSV, formatAttendanceForExport } from '../../../../lib/exportUtils';
+import AttendanceCalendar from '../../../../components/AttendanceCalendar';
 import toast from 'react-hot-toast';
 
 export default function EmployeeAttendancePage() {
@@ -14,6 +16,11 @@ export default function EmployeeAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [statusFilter, setStatusFilter] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
 
   useEffect(() => {
     if (!user) {
@@ -21,15 +28,22 @@ export default function EmployeeAttendancePage() {
       return;
     }
     fetchAttendance();
-  }, [user, selectedMonth, selectedYear]);
+  }, [user, selectedMonth, selectedYear, statusFilter, startDate, endDate]);
 
   const fetchAttendance = async () => {
     try {
       setLoading(true);
-      const response = await attendanceAPI.getByUser(user.id, {
-        month: selectedMonth,
-        year: selectedYear
-      });
+      const params = {};
+      if (startDate && endDate) {
+        params.startDate = startDate;
+        params.endDate = endDate;
+      } else {
+        params.month = selectedMonth;
+        params.year = selectedYear;
+      }
+      if (statusFilter) params.status = statusFilter;
+
+      const response = await attendanceAPI.getByUser(user.id, params);
       const data = response.data.data;
       setAttendance(Array.isArray(data) ? data : data.attendance || []);
     } catch (error) {
@@ -38,6 +52,26 @@ export default function EmployeeAttendancePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExport = async () => {
+    try {
+      const params = { month: selectedMonth, year: selectedYear };
+      if (statusFilter) params.status = statusFilter;
+      const response = await attendanceAPI.exportCSV(user.id, params);
+      const data = response.data.data;
+      const records = Array.isArray(data) ? data : data.attendance || [];
+      exportToCSV(formatAttendanceForExport(records), 'attendance');
+      toast.success('Attendance exported successfully');
+    } catch (error) {
+      toast.error('Failed to export attendance');
+    }
+  };
+
+  const clearFilters = () => {
+    setStatusFilter('');
+    setStartDate('');
+    setEndDate('');
   };
 
   const formatTime = (timeString) => {
@@ -113,31 +147,112 @@ export default function EmployeeAttendancePage() {
         </div>
         
         <div className="flex items-center space-x-3">
-          <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <div className="flex items-center border border-gray-300 rounded-lg">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-2 ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600'} rounded-l-lg`}
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`px-3 py-2 ${viewMode === 'calendar' ? 'bg-blue-600 text-white' : 'text-gray-600'} rounded-r-lg`}
+            >
+              <Grid className="w-4 h-4" />
+            </button>
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
-            {months.map((month, index) => (
-              <option key={month} value={index + 1}>
-                {month}
-              </option>
-            ))}
-          </select>
-          
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <Filter className="w-4 h-4" />
+            <span>Filters</span>
+          </button>
+          <button
+            onClick={handleExport}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
-            {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
+            <Download className="w-4 h-4" />
+            <span>Export CSV</span>
+          </button>
         </div>
       </div>
+
+      {showFilters && (
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {months.map((month, index) => (
+                  <option key={month} value={index + 1}>{month}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {years.map((year) => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All</option>
+                <option value="PRESENT">Present</option>
+                <option value="ABSENT">Absent</option>
+                <option value="HALF_DAY">Half Day</option>
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                onClick={clearFilters}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
@@ -205,7 +320,10 @@ export default function EmployeeAttendancePage() {
       </div>
 
       {/* Attendance Records */}
-      <div className="bg-white rounded-lg shadow">
+      {viewMode === 'calendar' ? (
+        <AttendanceCalendar attendance={attendance} month={selectedMonth} year={selectedYear} />
+      ) : (
+        <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">
             Attendance Records - {months[selectedMonth - 1]} {selectedYear}
@@ -229,6 +347,12 @@ export default function EmployeeAttendancePage() {
                     Date
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Employee
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Department
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -247,6 +371,12 @@ export default function EmployeeAttendancePage() {
                   <tr key={record.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatDate(record.date)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {record.users?.name || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {record.users?.department || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
@@ -272,6 +402,7 @@ export default function EmployeeAttendancePage() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

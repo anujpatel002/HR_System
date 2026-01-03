@@ -10,6 +10,7 @@ import api from '../../lib/api';
 import Navbar from '../../components/Navbar';
 import Sidebar from '../../components/Sidebar';
 import CheckInModal from '../../components/CheckInModal';
+import SessionWarningModal from '../../components/SessionWarningModal';
 
 
 export default function DashboardLayout({ children }) {
@@ -71,6 +72,15 @@ export default function DashboardLayout({ children }) {
     localStorage.setItem('lastCheckInDate', new Date().toDateString());
   };
 
+  const handleExtendSession = () => {
+    // Refresh session by making an API call
+    api.get('/auth/profile').catch(() => {});
+  };
+
+  const handleSessionLogout = () => {
+    router.push('/auth/login');
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -99,6 +109,10 @@ export default function DashboardLayout({ children }) {
         isOpen={showCheckInModal}
         onClose={() => setShowCheckInModal(false)}
         onCheckIn={handleCheckIn}
+      />
+      <SessionWarningModal
+        onExtend={handleExtendSession}
+        onLogout={handleSessionLogout}
       />
 
     </div>

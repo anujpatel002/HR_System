@@ -240,7 +240,7 @@ app.use(compression());
 ```javascript
 // Already enabled in Prisma by default
 // Adjust pool size in DATABASE_URL if needed
-// postgres://user:pass@host:5432/db?connection_limit=10
+// mysql://user:pass@host:3306/db?connection_limit=10
 ```
 
 ### 6. Redis for Distributed Caching

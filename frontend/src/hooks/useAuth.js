@@ -11,7 +11,9 @@ export const useAuth = () => {
     // Only check once per session to avoid repeated API calls
     if (!hasCheckedAuth.current && !isAuthenticated && !isLoading) {
       hasCheckedAuth.current = true;
-      dispatch(getProfile());
+      dispatch(getProfile()).catch(() => {
+        // Silently fail if not authenticated
+      });
     }
   }, [dispatch, isAuthenticated, isLoading]);
 

@@ -134,6 +134,16 @@ export default function AttendancePage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
+                {['ADMIN', 'HR_OFFICER'].includes(user?.role) && (
+                  <>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Employee
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Department
+                    </th>
+                  </>
+                )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Check In
                 </th>
@@ -154,6 +164,16 @@ export default function AttendancePage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {format(new Date(record.date), 'MMM d, yyyy')}
                   </td>
+                  {['ADMIN', 'HR_OFFICER'].includes(user?.role) && (
+                    <>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {record.users?.name || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {record.users?.department || '-'}
+                      </td>
+                    </>
+                  )}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {record.checkIn ? format(new Date(record.checkIn), 'HH:mm') : '-'}
                   </td>

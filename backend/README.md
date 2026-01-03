@@ -7,7 +7,7 @@ Node.js + Express.js backend for the WorkZen HR Management System.
 - JWT Authentication with HTTP-only cookies
 - Role-based access control (Admin, Employee, HR Officer, Payroll Officer)
 - RESTful API endpoints
-- PostgreSQL database with Prisma ORM
+- MySQL database with Prisma ORM
 - Automated payroll calculations
 - Comprehensive attendance and leave management
 

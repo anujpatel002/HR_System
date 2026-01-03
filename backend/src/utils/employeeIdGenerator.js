@@ -13,7 +13,7 @@ async function generateEmployeeId(name) {
   const lastTwoLetters = lastName.substring(0, 2).toUpperCase();
   
   // Get count of all users created in current year for serial number
-  const userCount = await prisma.user.count({
+  const userCount = await prisma.users.count({
     where: {
       createdAt: {
         gte: new Date(`${currentYear}-01-01`),

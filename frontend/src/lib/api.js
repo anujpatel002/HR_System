@@ -43,6 +43,8 @@ export const authAPI = {
   register: (userData) => api.post('/auth/register', userData),
   logout: () => api.post('/auth/logout'),
   getProfile: () => api.get('/auth/profile'),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (data) => api.post('/auth/reset-password', data)
 };
 
 // Users API
@@ -52,13 +54,17 @@ export const usersAPI = {
   create: (data) => api.post('/users', data),
   update: (id, data) => api.put(`/users/${id}`, data),
   delete: (id) => api.delete(`/users/${id}`),
+  bulkUpdate: (data) => api.post('/users/bulk-update', data)
 };
 
 // Attendance API
 export const attendanceAPI = {
   mark: (type) => api.post('/attendance/mark', { type }),
+  bulkMark: (data) => api.post('/attendance/bulk-mark', data),
   getToday: () => api.get('/attendance/today'),
   getByUser: (userId, params) => api.get(`/attendance/${userId}`, { params }),
+  getSummary: (userId, params) => api.get(`/attendance/summary/${userId}`, { params }),
+  exportCSV: (userId, params) => api.get(`/attendance/${userId}`, { params: { ...params, limit: 10000 } })
 };
 
 // Leave API
@@ -67,6 +73,9 @@ export const leaveAPI = {
   getByUser: (userId, params) => api.get(`/leave/${userId}`, { params }),
   getAll: (params) => api.get('/leave/all', { params }),
   updateStatus: (id, status) => api.put(`/leave/approve/${id}`, { status }),
+  getBalance: (userId) => api.get(`/leave/balance/${userId}`),
+  cancel: (id) => api.patch(`/leave/${id}/cancel`),
+  exportCSV: (userId, params) => api.get(`/leave/${userId}`, { params: { ...params, limit: 10000 } })
 };
 
 // Payroll API

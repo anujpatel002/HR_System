@@ -46,7 +46,6 @@ const markAttendance = async (req, res) => {
       } else {
         attendance = await prisma.attendance.create({
           data: {
-            id: `ATT-${userId}-${Date.now()}`,
             userId,
             date: todayStart,
             checkIn: now,
@@ -55,7 +54,6 @@ const markAttendance = async (req, res) => {
         });
       }
 
-      // Log activity
       await logActivity(userId, 'CREATE', 'ATTENDANCE', attendance.id, { type: 'checkin', time: now });
 
       success(res, attendance, 'Checked in successfully');
@@ -92,22 +90,33 @@ const markAttendance = async (req, res) => {
 const getAttendance = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { month, year, page = 1, limit = 31 } = req.query;
+    const { month, year, page = 1, limit = 31, status, startDate, endDate } = req.query;
     const skip = (page - 1) * limit;
 
-    if (userId !== req.user.id && !['ADMIN', 'HR_OFFICER', 'PAYROLL_OFFICER'].includes(req.user.role)) {
-      return error(res, 'Access denied', 403);
+    // Access control: Admin can see all, HR can see employees only, users see their own
+    if (userId !== req.user.id) {
+      if (req.user.role === 'HR_OFFICER') {
+        const targetUser = await prisma.users.findUnique({ where: { id: userId }, select: { role: true } });
+        if (!targetUser || targetUser.role !== 'EMPLOYEE') {
+          return error(res, 'HR can only view employee attendance', 403);
+        }
+      } else if (!['ADMIN', 'PAYROLL_OFFICER'].includes(req.user.role)) {
+        return error(res, 'Access denied', 403);
+      }
     }
 
     let whereClause = { userId };
 
     if (month && year) {
-      const startDate = new Date(year, month - 1, 1);
-      const endDate = new Date(year, month, 0);
-      whereClause.date = {
-        gte: startDate,
-        lte: endDate
-      };
+      const start = new Date(year, month - 1, 1);
+      const end = new Date(year, month, 0);
+      whereClause.date = { gte: start, lte: end };
+    } else if (startDate && endDate) {
+      whereClause.date = { gte: new Date(startDate), lte: new Date(endDate) };
+    }
+
+    if (status) {
+      whereClause.status = status;
     }
 
     const [attendance, total] = await Promise.all([
@@ -162,4 +171,100 @@ const getTodayAttendance = async (req, res) => {
   }
 };
 
-module.exports = { markAttendance, getAttendance, getTodayAttendance };
+const getAttendanceSummary = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { month, year } = req.query;
+    
+    // Access control: Admin can see all, HR can see employees only, users see their own
+    if (userId !== req.user.id) {
+      if (req.user.role === 'HR_OFFICER') {
+        const targetUser = await prisma.users.findUnique({ where: { id: userId }, select: { role: true } });
+        if (!targetUser || targetUser.role !== 'EMPLOYEE') {
+          return error(res, 'HR can only view employee attendance', 403);
+        }
+      } else if (!['ADMIN', 'PAYROLL_OFFICER'].includes(req.user.role)) {
+        return error(res, 'Access denied', 403);
+      }
+    }
+
+    const currentDate = new Date();
+    const targetMonth = month ? parseInt(month) - 1 : currentDate.getMonth();
+    const targetYear = year ? parseInt(year) : currentDate.getFullYear();
+
+    const startDate = new Date(targetYear, targetMonth, 1);
+    const endDate = new Date(targetYear, targetMonth + 1, 0);
+
+    const attendance = await prisma.attendance.findMany({
+      where: {
+        userId,
+        date: {
+          gte: startDate,
+          lte: endDate
+        }
+      }
+    });
+
+    const summary = {
+      totalDays: endDate.getDate(),
+      present: attendance.filter(a => a.status === 'PRESENT').length,
+      absent: attendance.filter(a => a.status === 'ABSENT').length,
+      halfDay: attendance.filter(a => a.status === 'HALF_DAY').length,
+      totalHours: attendance.reduce((sum, a) => sum + (a.totalHours || 0), 0),
+      month: targetMonth + 1,
+      year: targetYear
+    };
+
+    success(res, summary, 'Attendance summary retrieved successfully');
+  } catch (err) {
+    console.error('Get attendance summary error:', err);
+    error(res, 'Failed to get attendance summary', 500);
+  }
+};
+
+const bulkMarkAttendance = async (req, res) => {
+  try {
+    const { userIds, type, date } = req.body;
+    
+    // Admin can mark for all, HR can mark for employees only
+    if (req.user.role === 'HR_OFFICER') {
+      const users = await prisma.users.findMany({ where: { id: { in: userIds } }, select: { role: true } });
+      if (users.some(u => u.role !== 'EMPLOYEE')) {
+        return error(res, 'HR can only mark attendance for employees', 403);
+      }
+    } else if (req.user.role !== 'ADMIN') {
+      return error(res, 'Access denied', 403);
+    }
+
+    const targetDate = date ? new Date(date) : new Date();
+    const dateStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+    const results = [];
+
+    for (const userId of userIds) {
+      let attendance = await prisma.attendance.findFirst({
+        where: { userId, date: { gte: dateStart, lt: new Date(dateStart.getTime() + 24 * 60 * 60 * 1000) } }
+      });
+
+      if (type === 'checkin') {
+        if (attendance) {
+          attendance = await prisma.attendance.update({
+            where: { id: attendance.id },
+            data: { checkIn: new Date(), status: 'PRESENT' }
+          });
+        } else {
+          attendance = await prisma.attendance.create({
+            data: { userId, date: dateStart, checkIn: new Date(), status: 'PRESENT' }
+          });
+        }
+      }
+      results.push(attendance);
+    }
+
+    await logActivity(req.user.id, 'CREATE', 'ATTENDANCE', null, { type: 'bulk', count: userIds.length });
+    success(res, results, `Bulk attendance marked for ${userIds.length} users`);
+  } catch (err) {
+    error(res, 'Failed to mark bulk attendance', 500);
+  }
+};
+
+module.exports = { markAttendance, getAttendance, getTodayAttendance, getAttendanceSummary, bulkMarkAttendance };

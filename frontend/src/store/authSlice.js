@@ -113,9 +113,18 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
       })
       // Get Profile
+      .addCase(getProfile.pending, (state) => {
+        state.isLoading = true;
+      })
       .addCase(getProfile.fulfilled, (state, action) => {
+        state.isLoading = false;
         state.user = action.payload;
         state.isAuthenticated = true;
+      })
+      .addCase(getProfile.rejected, (state) => {
+        state.isLoading = false;
+        state.isAuthenticated = false;
+        state.user = null;
       });
   },
 });

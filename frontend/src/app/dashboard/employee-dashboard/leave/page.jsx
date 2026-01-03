@@ -1,18 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Calendar, CheckCircle, XCircle, AlertCircle, X, Download, Filter } from 'lucide-react';
 import { leaveAPI } from '../../../../lib/api';
 import { useAuth } from '../../../../hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { exportToCSV, formatLeavesForExport } from '../../../../lib/exportUtils';
 import toast from 'react-hot-toast';
 
 export default function EmployeeLeavePage() {
   const { user } = useAuth();
   const router = useRouter();
   const [leaves, setLeaves] = useState([]);
+  const [balance, setBalance] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [formData, setFormData] = useState({
     type: 'CASUAL',
     startDate: '',
@@ -26,20 +32,74 @@ export default function EmployeeLeavePage() {
       return;
     }
     fetchLeaves();
-  }, [user]);
+    fetchBalance();
+  }, [user, statusFilter, startDate, endDate]);
 
   const fetchLeaves = async () => {
     try {
       setLoading(true);
-      const response = await leaveAPI.getByUser(user.id);
-      // Consistent response structure: response.data.data contains the payload
+      const params = {};
+      if (statusFilter) params.status = statusFilter;
+      if (startDate && endDate) {
+        params.startDate = startDate;
+        params.endDate = endDate;
+      }
+      const response = await leaveAPI.getByUser(user.id, params);
       const data = response.data.data;
-      setLeaves(data || []);
+      if (Array.isArray(data)) {
+        setLeaves(data);
+      } else if (data && Array.isArray(data.leaves)) {
+        setLeaves(data.leaves);
+      } else {
+        setLeaves([]);
+      }
     } catch (error) {
       console.error('Error fetching leaves:', error);
+      setLeaves([]);
       toast.error('Failed to load leave history');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBalance = async () => {
+    try {
+      const response = await leaveAPI.getBalance(user.id);
+      setBalance(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching balance:', error);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const params = {};
+      if (statusFilter) params.status = statusFilter;
+      const response = await leaveAPI.exportCSV(user.id, params);
+      const data = response.data.data;
+      const records = Array.isArray(data) ? data : data.leaves || [];
+      exportToCSV(formatLeavesForExport(records), 'leaves');
+      toast.success('Leaves exported successfully');
+    } catch (error) {
+      toast.error('Failed to export leaves');
+    }
+  };
+
+  const clearFilters = () => {
+    setStatusFilter('');
+    setStartDate('');
+    setEndDate('');
+  };
+
+  const handleCancel = async (leaveId) => {
+    if (!confirm('Are you sure you want to cancel this leave application?')) return;
+    try {
+      await leaveAPI.cancel(leaveId);
+      toast.success('Leave cancelled successfully');
+      fetchLeaves();
+      fetchBalance();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to cancel leave');
     }
   };
 
@@ -62,6 +122,7 @@ export default function EmployeeLeavePage() {
       setShowForm(false);
       setFormData({ type: 'CASUAL', startDate: '', endDate: '', reason: '' });
       fetchLeaves();
+      fetchBalance();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to submit leave application');
     }
@@ -105,13 +166,89 @@ export default function EmployeeLeavePage() {
           <h1 className="text-2xl font-bold text-gray-900">Leave Management</h1>
           <p className="text-gray-600">Apply for leave and track your applications</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Apply for Leave
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            <Filter className="w-4 h-4" />
+            <span>Filters</span>
+          </button>
+          <button
+            onClick={handleExport}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            <Download className="w-4 h-4" />
+            <span>Export CSV</span>
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Apply for Leave
+          </button>
+        </div>
       </div>
+
+      {showFilters && (
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All</option>
+                <option value="PENDING">Pending</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <div className="mt-4">
+            <button
+              onClick={clearFilters}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Balance Cards */}
+      {balance.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          {balance.map((b) => (
+            <div key={b.code} className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+              <h3 className="text-sm font-medium text-gray-600">{b.type}</h3>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{b.available}</p>
+              <p className="text-xs text-gray-500 mt-1">of {b.total} available</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Leave Application Form Modal */}
       {showForm && (
@@ -220,6 +357,15 @@ export default function EmployeeLeavePage() {
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(leave.status)}`}>
                         {leave.status}
                       </span>
+                      {leave.status === 'PENDING' && (
+                        <button
+                          onClick={() => handleCancel(leave.id)}
+                          className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center"
+                        >
+                          <X className="w-4 h-4 mr-1" />
+                          Cancel
+                        </button>
+                      )}
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">

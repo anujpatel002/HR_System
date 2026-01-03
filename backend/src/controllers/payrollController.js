@@ -31,7 +31,10 @@ const generatePayroll = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        basicSalary: true
+        basicSalary: true,
+        bankName: true,
+        accountNumber: true,
+        ifscCode: true
       }
     });
 
@@ -39,9 +42,18 @@ const generatePayroll = async (req, res) => {
       return error(res, 'No users found with basic salary set', 400);
     }
 
-    const payrollResults = [];
+    // Filter users with complete bank details
+    const usersWithBankDetails = users.filter(u => u.bankName && u.accountNumber && u.ifscCode);
+    const usersWithoutBankDetails = users.filter(u => !u.bankName || !u.accountNumber || !u.ifscCode);
 
-    for (const user of users) {
+    if (usersWithBankDetails.length === 0) {
+      return error(res, 'No users found with complete bank details', 400);
+    }
+
+    const payrollResults = [];
+    const skippedUsers = [];
+
+    for (const user of usersWithBankDetails) {
       // Check if payroll already exists
       const existingPayroll = await prisma.payrolls.findUnique({
         where: {
@@ -101,9 +113,21 @@ const generatePayroll = async (req, res) => {
     }
 
     // Log activity
-    await logActivity(req.user.id, 'CREATE', 'PAYROLL', null, { month, year, employeeCount: payrollResults.length });
+    await logActivity(req.user.id, 'CREATE', 'PAYROLL', null, { 
+      month, 
+      year, 
+      employeeCount: payrollResults.length,
+      skippedCount: usersWithoutBankDetails.length 
+    });
 
-    success(res, payrollResults, `Payroll generated for ${payrollResults.length} employees`, 201);
+    const message = usersWithoutBankDetails.length > 0 
+      ? `Payroll generated for ${payrollResults.length} employees. ${usersWithoutBankDetails.length} users skipped due to missing bank details.`
+      : `Payroll generated for ${payrollResults.length} employees`;
+
+    success(res, { 
+      payrolls: payrollResults,
+      skippedUsers: usersWithoutBankDetails.map(u => ({ id: u.id, name: u.name, email: u.email }))
+    }, message, 201);
   } catch (err) {
     error(res, 'Failed to generate payroll', 500);
   }
@@ -112,10 +136,9 @@ const generatePayroll = async (req, res) => {
 const getPayroll = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { month, year, page = 1, limit = 10 } = req.query;
+    const { month, year, page = 1, limit = 10, startMonth, endMonth, startYear, endYear } = req.query;
     const skip = (page - 1) * limit;
 
-    // Check access permissions
     if (userId !== req.user.id && !['ADMIN', 'PAYROLL_OFFICER'].includes(req.user.role)) {
       return error(res, 'Access denied', 403);
     }
@@ -124,6 +147,15 @@ const getPayroll = async (req, res) => {
     if (month && year) {
       whereClause.month = month;
       whereClause.year = parseInt(year);
+    } else if (startMonth && endMonth && startYear && endYear) {
+      whereClause.OR = [];
+      for (let y = parseInt(startYear); y <= parseInt(endYear); y++) {
+        const sMonth = y === parseInt(startYear) ? parseInt(startMonth) : 1;
+        const eMonth = y === parseInt(endYear) ? parseInt(endMonth) : 12;
+        for (let m = sMonth; m <= eMonth; m++) {
+          whereClause.OR.push({ year: y, month: m.toString().padStart(2, '0') });
+        }
+      }
     }
 
     const [payrolls, total] = await Promise.all([
