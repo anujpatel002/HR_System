@@ -59,9 +59,9 @@ export const usersAPI = {
 
 // Attendance API
 export const attendanceAPI = {
-  mark: (type) => api.post('/attendance/mark', { type }),
+  mark: (type, userId = null) => api.post('/attendance/mark', { type, userId }),
   bulkMark: (data) => api.post('/attendance/bulk-mark', data),
-  getToday: () => api.get('/attendance/today'),
+  getToday: (userId = null) => api.get('/attendance/today', { params: userId ? { userId } : {} }),
   getByUser: (userId, params) => api.get(`/attendance/${userId}`, { params }),
   getSummary: (userId, params) => api.get(`/attendance/summary/${userId}`, { params }),
   exportCSV: (userId, params) => api.get(`/attendance/${userId}`, { params: { ...params, limit: 10000 } })

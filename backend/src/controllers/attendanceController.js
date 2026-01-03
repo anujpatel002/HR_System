@@ -14,7 +14,21 @@ const markAttendance = async (req, res) => {
       return error(res, validationError.details[0].message, 400);
     }
 
-    const userId = req.user.id;
+    const { userId: targetUserId } = req.body;
+    const userId = targetUserId || req.user.id;
+
+    // Access control: Admin can mark for all, HR can mark for employees only
+    if (targetUserId && targetUserId !== req.user.id) {
+      if (req.user.role === 'HR_OFFICER') {
+        const targetUser = await prisma.users.findUnique({ where: { id: targetUserId }, select: { role: true } });
+        if (!targetUser || targetUser.role !== 'EMPLOYEE') {
+          return error(res, 'HR can only mark attendance for employees', 403);
+        }
+      } else if (req.user.role !== 'ADMIN') {
+        return error(res, 'Access denied', 403);
+      }
+    }
+
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
@@ -54,7 +68,7 @@ const markAttendance = async (req, res) => {
         });
       }
 
-      await logActivity(userId, 'CREATE', 'ATTENDANCE', attendance.id, { type: 'checkin', time: now });
+      await logActivity(req.user.id, 'CREATE', 'ATTENDANCE', attendance.id, { type: 'checkin', time: now, forUser: userId });
 
       success(res, attendance, 'Checked in successfully');
     } else {
@@ -76,8 +90,7 @@ const markAttendance = async (req, res) => {
         }
       });
 
-      // Log activity
-      await logActivity(userId, 'UPDATE', 'ATTENDANCE', attendance.id, { type: 'checkout', time: now, totalHours });
+      await logActivity(req.user.id, 'UPDATE', 'ATTENDANCE', attendance.id, { type: 'checkout', time: now, totalHours, forUser: userId });
 
       success(res, attendance, 'Checked out successfully');
     }
@@ -150,7 +163,21 @@ const getAttendance = async (req, res) => {
 
 const getTodayAttendance = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const { userId: queryUserId } = req.query;
+    const userId = queryUserId || req.user.id;
+
+    // Access control: Admin can see all, HR can see employees only
+    if (queryUserId && queryUserId !== req.user.id) {
+      if (req.user.role === 'HR_OFFICER') {
+        const targetUser = await prisma.users.findUnique({ where: { id: queryUserId }, select: { role: true } });
+        if (!targetUser || targetUser.role !== 'EMPLOYEE') {
+          return error(res, 'HR can only view employee attendance', 403);
+        }
+      } else if (!['ADMIN', 'PAYROLL_OFFICER'].includes(req.user.role)) {
+        return error(res, 'Access denied', 403);
+      }
+    }
+
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
